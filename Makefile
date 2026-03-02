@@ -1,4 +1,4 @@
-PRODUCT = hello
+PRODUCT = stocks
 PLATFORMS = coco apple2 atari c64 adam msdos msxrom adam_cpm
 
 # You can run 'make <platform>' to build for a specific platform,
@@ -10,6 +10,7 @@ PLATFORMS = coco apple2 atari c64 adam msdos msxrom adam_cpm
 # SRC_DIRS may use the literal %PLATFORM% token.
 # It expands to the chosen PLATFORM plus any of its combos.
 SRC_DIRS = src src/%PLATFORM%
+INCLUDE_DIRS = include include/%PLATFORM%
 
 # FUJINET_LIB can be
 # - a version number such as 4.7.6
@@ -18,7 +19,7 @@ SRC_DIRS = src src/%PLATFORM%
 # - a URL to a git repo
 # - empty which will use whatever is the latest
 # - undefined, no fujinet-lib will be used
-FUJINET_LIB = 
+FUJINET_LIB = 4.10.0 
 
 # Define extra dirs ("combos") that expand with a platform.
 # Format: platform+=combo1,combo2
@@ -29,6 +30,8 @@ PLATFORM_COMBOS = \
   msxdos+=msx \
   adam_cpm+=adam
 
+CFLAGS_EXTRA_COCO += -Wno-const
+include hirestxt-mod-lib.mk
 include mekkogx/toplevel-rules.mk
 
 # If you need to add extra platform-specific steps, do it below:
@@ -36,3 +39,5 @@ include mekkogx/toplevel-rules.mk
 #   coco/r2r:: coco/custom-step2
 # or
 #   apple2/disk: apple2/custom-step1 apple2/custom-step2
+EXTRA_C_DEPS_COCO = .get_hirestxt_lib
+LDFLAGS_EXTRA_COCO = --org=2200 --limit=7C00

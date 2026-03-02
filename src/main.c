@@ -1,22 +1,28 @@
 #include <fujinet-fuji.h>
-#ifndef _CMOC_VERSION_
-#include <stdio.h>
 #include <string.h>
-#endif /* _CMOC_VERSION_ */
+#include <conio.h>
+#include "fujinet-stocks.h"
 
 AdapterConfigExtended ace;
 
-void main()
+int main(void)
 {
-  printf("Searching for FujiNet...\n");
-  if (!fuji_get_adapter_config_extended(&ace))
-    strcpy(ace.fn_version, "FAIL");
+#ifdef _CMOC_VERSION_
+    hirestxt_init();
+#endif
 
-  printf("FujiNet: %-14s\n", ace.fn_version);
+    /* Verify FujiNet is present before proceeding */
+    if (!fuji_get_adapter_config_extended(&ace))
+        strcpy(ace.fn_version, "FAIL");
 
-  /* Loop forever so message stays on screen */
-  while (1)
-    ;
+    /* Hand off to the main application loop (screen.c).
+       main_loop() returns only when the user presses BREAK. */
+    main_loop();
 
-  return;
+#ifdef _CMOC_VERSION_
+    hirestxt_close();
+    coldStart();
+#endif
+
+    return 0;
 }
