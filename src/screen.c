@@ -213,9 +213,12 @@ static void edit_stock(int selected)
 static void draw_lookup_row(int i, bool highlighted)
 {
     char line[41];
-    snprintf(line, sizeof(line), "%-12s %-27s",
-             lookup_results.results[i].displaySymbol,
-             lookup_results.results[i].description);
+    char sym[13];
+    char desc[28];
+
+    strncpy(sym,  lookup_results.results[i].displaySymbol, 12); sym[12]  = '\0';
+    strncpy(desc, lookup_results.results[i].description,   27); desc[27] = '\0';
+    snprintf(line, sizeof(line), "%-12s %-27s", sym, desc);
     line[40] = '\0';
     gotoxy(0, 4 + i);
     if (highlighted) revers(1);
@@ -262,6 +265,7 @@ static void lookup_screen(int return_slot)
     if (!get_line(query, SYMBOL_LEN) || query[0] == '\0')
         return;
 
+    clear_ticker_line();
     lookup_stock_ticker(query);   /* fills global lookup_results */
 
     clear_content_area();
@@ -417,8 +421,8 @@ void main_loop(void)
             case 'E':
                 if (show_stocks) {
                     edit_stock(selected);
+                    draw_slot(selected, true);
                     need_scroll_rebuild = true;
-                    need_redraw         = true;
                 }
                 break;
 
