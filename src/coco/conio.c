@@ -2,11 +2,6 @@
 #include <ctype.h>
 #include <conio.h>
 
-#ifdef clrscr
-#undef clrscr
-#endif
-
-#include <hirestxt.h>
 
 #define SCREEN_BUFFER (byte*) 0xA00
 
@@ -88,10 +83,6 @@ void cursor(bool onoff)
     cursor_on = onoff;
 }
 
-void clear_screen(byte color)
-{
-    clrscr();
-}
 
 char cgetc()
 {
@@ -125,10 +116,10 @@ char cgetc()
     }
 }
 
-bool get_line(char *buf, int max_len)
+void get_line(char *buf, uint8_t max_len)
 {
     uint8_t c;
-    uint16_t i = 0;
+    uint8_t i = 0;
 
     do
     {
@@ -136,8 +127,9 @@ bool get_line(char *buf, int max_len)
         c = cgetc();
         if (c == BREAK)
         {
+            buf[0] = '\0';
             cursor(false);
-            return false;
+            return;
         }
         else if (isprint(c))
         {
@@ -161,7 +153,6 @@ bool get_line(char *buf, int max_len)
     buf[i] = '\0';
 
     cursor(false);
-    return true;
 }
 
 /* revers()
@@ -186,3 +177,4 @@ void sync_frame(void)
     while (getTimer() == t)
         ;
 }
+

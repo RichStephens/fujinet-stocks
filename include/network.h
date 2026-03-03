@@ -6,23 +6,22 @@
  * FujiNet network calls for retrieving stock data.
  * ----------------------------------------------------------------------- */
 
+#include <stdint.h>
 #include <stdbool.h>
-#include "fujinet-stocks.h"
+#include "stocks.h"
 
-/* Global result buffers — defined in network.c, too large for the stack */
+#define FINNHUB_API_KEY         "d6gunihr01qoor9mjbsgd6gunihr01qoor9mjbt0"
+#define FINNHUB_COMPANY_PROFILE "N1:HTTPS://finnhub.io/api/v1/stock/profile2?symbol=%s&token=%s"
+#define FINNHUB_STOCK_QUOTE     "N1:HTTPS://finnhub.io/api/v1/quote?symbol=%s&token=%s"
+#define FINNHUB_SYMBOL_LOOKUP   "N1:HTTPS://finnhub.io/api/v1/search?q=%s&token=%s"
+
 extern LookupResults lookup_results;
 extern StockInfo     stock_info;
 
-/* URL-encode src into out (out must be >= 3*strlen(src)+1 bytes). */
+void check_error(uint8_t err, const char *msg);
 void url_encode(const char *src, char *out, int out_len);
-
-/* Fetch current price/change data for stocks[index] and update in-place. */
-bool get_stock(int index);
-
-/* Fill global stock_info with detailed quote data for symbol. */
+void get_stock_quote(Stock *s);
 void get_stock_info(const char *symbol);
-
-/* Fill global lookup_results with up to MAX_LOOKUP_RESULTS ticker matches. */
 void lookup_stock_ticker(const char *query);
 
 #endif /* NETWORK_H */
