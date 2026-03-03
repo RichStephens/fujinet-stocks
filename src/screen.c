@@ -35,6 +35,30 @@ static void fill_spaces(int n)
 }
 
 /**
+ * @brief Print a string centred within SCREEN_WIDTH on the current row.
+ *
+ * Leading and trailing spaces pad the field to exactly SCREEN_WIDTH columns.
+ *
+ * @param s The string to centre.
+ */
+static void print_centered(const char *s)
+{
+    fill_spaces((SCREEN_WIDTH - (int)strlen(s)) / 2);
+    printf("%s", s);
+}
+
+/**
+ * @brief Clear a single screen row.
+ *
+ * @param row The row number to clear.
+ */
+void clear_line(int row)
+{
+    gotoxy(0, row);
+    fill_spaces(SCREEN_WIDTH);
+}
+
+/**
  * @brief Write a SCREEN_WIDTH-character window from scroll_buf into row 0.
  */
 static void draw_ticker_row(void)
@@ -57,23 +81,30 @@ static void draw_ticker_row(void)
  *
  * Written character-by-character to avoid accidentally triggering a scroll
  * via the bottom-right corner cell.
+ *
+ * @param show_stocks true when the stock list is visible (ignored when lookup).
+ * @param lookup      true to show the lookup screen menu instead of the main menu.
  */
-static void draw_menu(void)
+static void draw_menu(bool show_stocks, bool lookup)
 {
-    const char *p;
-    int col;
+    clear_line(MENU_ROW1);
+    clear_line(MENU_ROW2);
 
     gotoxy(0, MENU_ROW1);
-    for (p = "<S>how <E>dit <D>elete <I>nfo <L>ookup", col = 0;
-         *p && col < SCREEN_WIDTH; p++, col++)
-        putchar(*p);
-    fill_spaces(SCREEN_WIDTH - col);
+    if (lookup)
+        print_centered("Arrows:Select  <ENTER>:Choose");
+    else if (show_stocks)
+        print_centered("<H>ide <E>dit <D>elete <I>nfo <L>ookup");
+    else
+        print_centered("<S>how <L>ookup");
 
     gotoxy(0, MENU_ROW2);
-    for (p = "       Arrows:Select  <BREAK>:Quit       ", col = 0;
-         *p && col < SCREEN_WIDTH - 1; p++, col++)
-        putchar(*p);
-    fill_spaces(SCREEN_WIDTH - 1 - col);
+    if (lookup)
+        print_centered("<BREAK>:Return");
+    else if (show_stocks)
+        print_centered("0-9/Arrows:Select  <BREAK>:Quit");
+    else
+        print_centered("<BREAK>:Quit");
 }
 
 /**
@@ -209,8 +240,6 @@ static void show_stock_info(int selected)
     char cap_str[12];
     char shares_str[12];
     char phone_str[16];
-    int  col;
-    const char *p;
 
     if (stocks[selected].symbol[0] == '\0')
         return;
@@ -235,10 +264,7 @@ static void show_stock_info(int selected)
     gotoxy(0, 14); printf("Web     : %s",  stock_info.weburl);
 
     gotoxy(0, MENU_ROW1);
-    for (p = "Press any key to return...", col = 0;
-         *p && col < SCREEN_WIDTH; p++, col++)
-        putchar(*p);
-    fill_spaces(SCREEN_WIDTH - col);
+    print_centered("Press any key to return...");
 
     gotoxy(0, MENU_ROW2);
     fill_spaces(SCREEN_WIDTH - 1);
@@ -295,26 +321,6 @@ static void draw_lookup_row(int i, bool highlighted)
     if (highlighted) revers(0);
 }
 
-/**
- * @brief Render the lookup screen command menu at rows 22-23.
- */
-static void draw_lookup_menu(void)
-{
-    const char *p;
-    int col;
-
-    gotoxy(0, MENU_ROW1);
-    for (p = "   Arrows:Select   <ENTER>:Choose       ", col = 0;
-         *p && col < SCREEN_WIDTH; p++, col++)
-        putchar(*p);
-    fill_spaces(SCREEN_WIDTH - col);
-
-    gotoxy(0, MENU_ROW2);
-    for (p = "              <BREAK>:Return            ", col = 0;
-         *p && col < SCREEN_WIDTH - 1; p++, col++)
-        putchar(*p);
-    fill_spaces(SCREEN_WIDTH - 1 - col);
-}
 
 /** @brief Progress message displayed on the ticker row during network calls. */
 static char progress_msg[SCREEN_WIDTH + 1];
@@ -350,9 +356,10 @@ void update_progress_message(void)
  * Calls lookup_stock_ticker() which fills global lookup_results, then
  * displays them and allows the user to select one.
  *
- * @param return_slot Slot index to store the chosen symbol into.
+ * @param return_slot   Slot index to store the chosen symbol into.
+ * @param update_stocks If false, ENTER returns without modifying the stock list.
  */
-static bool lookup_screen(int return_slot)
+static bool lookup_screen(int return_slot, bool update_stocks)
 {
     char query[SYMBOL_LEN];
     int  lk_sel = 0;
@@ -367,7 +374,7 @@ static bool lookup_screen(int return_slot)
     if (query[0] == '\0')
         return false;
 
-    clear_ticker_line();
+    clear_line(TICKER_ROW);
     set_progress_message("Looking up");
     lookup_stock_ticker(query);   /* fills global lookup_results */
 
@@ -387,7 +394,7 @@ static bool lookup_screen(int return_slot)
     for (i = 0; i < lookup_results.count; i++)
         draw_lookup_row(i, i == lk_sel);
 
-    draw_lookup_menu();
+    draw_menu(false, true);
 
     for (;;) {
         while ((key = cgetc()) == 0)
@@ -397,6 +404,8 @@ static bool lookup_screen(int return_slot)
             return false;
 
         if (key == ENTER) {
+            if (!update_stocks)
+                return false;
             memset(&stocks[return_slot], 0, sizeof(Stock));
             strncpy(stocks[return_slot].symbol,
                     lookup_results.results[lk_sel].displaySymbol,
@@ -469,12 +478,12 @@ void main_loop(void)
     clock_t last_quote_time     = clock();
 
     clrscr();
-    draw_menu();
+    draw_menu(show_stocks, false);
 
     for (;;) {
 
         if (clock() - last_quote_time >= GET_QUOTES_INTERVAL) {
-            clear_ticker_line();
+            clear_line(TICKER_ROW);
             get_stock_quotes();
             last_quote_time     = clock();
             need_scroll_rebuild = true;
@@ -492,7 +501,7 @@ void main_loop(void)
             clear_content_area();
             if (show_stocks)
                 draw_stock_list(selected);
-            draw_menu();
+            draw_menu(show_stocks, false);
             need_redraw = false;
         }
 
@@ -515,8 +524,17 @@ void main_loop(void)
         switch (key) {
 
             case 'S': case 's':
-                show_stocks = !show_stocks;
-                need_redraw = true;
+                if (!show_stocks) {
+                    show_stocks = true;
+                    need_redraw = true;
+                }
+                break;
+
+            case 'H': case 'h':
+                if (show_stocks) {
+                    show_stocks = false;
+                    need_redraw = true;
+                }
                 break;
 
             case ARROW_UP:
@@ -533,12 +551,24 @@ void main_loop(void)
                 }
                 break;
 
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9':
+                if (show_stocks) {
+                    new_sel = (key == '0') ? 9 : (key - '1');
+                    if (new_sel != selected) {
+                        draw_slot(selected, false);
+                        draw_slot(new_sel,  true);
+                        selected = new_sel;
+                    }
+                }
+                break;
+
             case 'E': case 'e':
                 if (show_stocks) {
                     edit_stock(selected);
                     sort_stocks();
                     save_stocks();
-                    clear_ticker_line();
+                    clear_line(TICKER_ROW);
                     get_stock_quotes();
                     last_quote_time     = clock();
                     selected            = 0;
@@ -565,39 +595,28 @@ void main_loop(void)
                     clrscr();
                     need_redraw         = true;
                     need_scroll_rebuild = true;
-                    draw_menu();
+                    draw_menu(show_stocks, false);
                 }
                 break;
 
             case 'L': case 'l':
-                if (show_stocks) {
-                    if (lookup_screen(selected)) {
-                        clrscr();
-                        sort_stocks();
-                        save_stocks();
-                        get_stock_quotes();
-                        last_quote_time = clock();
-                    } else {
-                        clrscr();
-                    }
-                    selected            = 0;
-                    need_redraw         = true;
-                    need_scroll_rebuild = true;
-                    draw_menu();
+                if (lookup_screen(selected, show_stocks)) {
+                    clrscr();
+                    sort_stocks();
+                    save_stocks();
+                    get_stock_quotes();
+                    last_quote_time = clock();
+                } else {
+                    clrscr();
                 }
+                selected            = 0;
+                need_redraw         = true;
+                need_scroll_rebuild = true;
+                draw_menu(show_stocks, false);
                 break;
 
             default:
                 break;
         }
     }
-}
-
-/**
- * @brief Clear the ticker line (row 0) of the screen.
- */
-void clear_ticker_line(void)
-{
-    gotoxy(0, TICKER_ROW);
-    fill_spaces(SCREEN_WIDTH);
 }

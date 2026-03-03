@@ -14,8 +14,8 @@
 #include <screen.h>
 #include <chardefs.h>
 
-/* Auto-refresh interval: fetch new quotes every 1 minute (60 * CLOCKS_PER_SEC) */
-#define GET_QUOTES_INTERVAL  ((clock_t)(60 * CLOCKS_PER_SEC))
+/* Auto-refresh interval: fetch new quotes every 5 minutes (300 * CLOCKS_PER_SEC) */
+#define GET_QUOTES_INTERVAL  ((clock_t)(300 * CLOCKS_PER_SEC))
 
 /* Number of stocks the app tracks */
 #define MAX_STOCKS         10
