@@ -51,6 +51,6 @@
 /* Scroll speed: advance one character every N frames (lower = faster) */
 #define SCROLL_FRAMES   6
 
-void clear_ticker_line(void);
+void clear_line(int row);
 
 #endif /* SCREEN_H */
