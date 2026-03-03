@@ -12,9 +12,9 @@ up, add, edit, and delete stocks — all from a 40/42-column text screen.
 | Apple II | cc65 |
 | Atari | cc65 |
 | Commodore 64 | cc65 |
-| Adam | cc65 |
-| Adam (CP/M) | cc65 |
-| MS-DOS | cc65 |
+| Adam | z88dk |
+| Adam (CP/M) | z88dk |
+| MS-DOS | wcc |
 | MSX (ROM) | cc65 |
 
 ## Features
@@ -61,8 +61,7 @@ The stock list is centred in the content area as two columns of five:
 
 - A FujiNet device connected to your 8-bit computer
 - A free [Finnhub](https://finnhub.io) API key
-- The [mekkogx](https://github.com/FujiNetWIFI/mekkogx) build system
-- Platform toolchain: **cmoc** (CoCo) or **cc65** (all others)
+- Platform toolchain: **cmoc** (CoCo), **cc65** (Apple II, Atari, C64), Open Watcom C (msdos)
 - FujiNet library **4.10.0** (fetched automatically by the build)
 
 ## Configuration
@@ -127,7 +126,3 @@ app `0x01`) as pipe-separated strings:
 
 - Key 1 → slots 1–5  (e.g. `AAPL|GOOG|TSLA`)
 - Key 2 → slots 6–10 (e.g. `MSFT|AMZN`)
-
-## License
-
-See [LICENSE](LICENSE) if present, or contact the project maintainer.
