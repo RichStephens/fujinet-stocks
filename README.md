@@ -21,7 +21,7 @@ up, add, edit, and delete stocks — all from a 40/42-column text screen.
 
 - Scrolling ticker tape (row 0) showing symbol, price, and change %
 - 10 stock slots displayed in two columns of five
-- Auto-refresh every 60 seconds via the [Finnhub](https://finnhub.io) API
+- Auto-refresh every 5 minutes via the [Finnhub](https://finnhub.io) API
 - Company info screen: name, exchange, industry, market cap, IPO date, website
 - Symbol lookup by name or partial ticker
 - Stocks persisted across sessions using FujiNet AppKey storage
