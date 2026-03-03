@@ -1,28 +1,23 @@
 #include <fujinet-fuji.h>
 #include <string.h>
 #include <conio.h>
-#include "fujinet-stocks.h"
+#include "stocks.h"
+#include "init.h"
 
 AdapterConfigExtended ace;
 
 int main(void)
 {
-#ifdef _CMOC_VERSION_
-    hirestxt_init();
-#endif
-
-    /* Verify FujiNet is present before proceeding */
-    if (!fuji_get_adapter_config_extended(&ace))
-        strcpy(ace.fn_version, "FAIL");
+    init();
+    load_stocks();
+    get_stock_quotes();
 
     /* Hand off to the main application loop (screen.c).
        main_loop() returns only when the user presses BREAK. */
     main_loop();
 
-#ifdef _CMOC_VERSION_
-    hirestxt_close();
-    coldStart();
-#endif
+    save_stocks();
+    cleanup();
 
     return 0;
 }
