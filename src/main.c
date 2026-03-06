@@ -3,14 +3,13 @@
 #include <conio.h>
 #include "stocks.h"
 #include "init.h"
+#include <screen.h>
 
 AdapterConfigExtended ace;
 
 int main(void)
 {
     init();
-    load_stocks();
-    get_stock_quotes();
 
     /* Hand off to the main application loop (screen.c).
        main_loop() returns only when the user presses BREAK. */
@@ -18,6 +17,8 @@ int main(void)
 
     save_stocks();
     cleanup();
+    if (!doesclrscrafterexit())
+        clrscr();
 
     return 0;
 }

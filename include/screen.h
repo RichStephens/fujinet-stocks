@@ -6,13 +6,15 @@
  * Screen layout constants for the FujiNet Stocks application.
  *
  * SCREEN_WIDTH is platform-specific: 42 on CoCo (cmoc/hirestxt), 40 on
- * all other platforms (cc65).  Everything else is derived from it so the
+ * all other platforms.  Everything else is derived from it so the
  * layout automatically adapts when compiled for a different target.
  *
  *   Row  0        : scrolling stock ticker
  *   Rows 1 - 21   : main content area
  *   Rows 22 - 23  : menu / command help
  * ----------------------------------------------------------------------- */
+#include <stdbool.h>
+
 #ifdef _CMOC_VERSION_
 #  define SCREEN_WIDTH     42
 #else
@@ -51,6 +53,16 @@
 /* Scroll speed: advance one character every N frames (lower = faster) */
 #define SCROLL_FRAMES   6
 
+/* Display name for the BREAK key used in menu strings.
+ * CoCo has a dedicated hardware BREAK key; all other platforms use ESC. */
+#ifdef _CMOC_VERSION_
+#  define BREAK_KEY_NAME  "BREAK"
+#else
+#  define BREAK_KEY_NAME  "ESC"
+#endif
+
+void print_centered(const char *s);
 void clear_line(int row);
+void print_app_name(bool print_wait);
 
 #endif /* SCREEN_H */

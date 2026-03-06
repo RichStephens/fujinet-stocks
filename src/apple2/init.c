@@ -1,3 +1,5 @@
+#include <cc65.h>
+#include <conio.h>
 #include "init.h"
 
 /**
@@ -16,4 +18,6 @@ void init(void)
  */
 void cleanup(void)
 {
+    if (!doesclrscrafterexit())
+        clrscr();
 }

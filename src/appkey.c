@@ -20,12 +20,12 @@ char read_buffer[65];
 bool read_appkey(char *buffer, uint8_t max_len, uint8_t key) {
     bool key_result = false;
     bool read_result = false;
-	uint16_t read_count = 0;
+    static uint16_t read_count = 0;
 
     fuji_set_appkey_details(CREATOR_ID, STOCKS_APP_ID, DEFAULT);
 
     memset(read_buffer, 0, max_len);
-    key_result = fuji_read_appkey(key, &read_count, read_buffer);
+    key_result = fuji_read_appkey(key, &read_count, (unsigned char *)read_buffer);
     if (key_result && read_count > 0)
     {
         strncpy(buffer, read_buffer, max_len);
@@ -49,7 +49,7 @@ bool write_appkey(char *buffer, uint8_t key) {
 
     fuji_set_appkey_details(CREATOR_ID, STOCKS_APP_ID, DEFAULT);
 
-    key_result = fuji_write_appkey(key, strlen(buffer), buffer);
+    key_result = fuji_write_appkey(key, strlen(buffer), (unsigned char *)buffer);
 
     return key_result;
 }

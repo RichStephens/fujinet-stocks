@@ -6,14 +6,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <conio.h>
 #include <fujinet-network.h>
 #include "network.h"
 #include "init.h"
+#include <screen.h>
 
 
 /** @brief Global result buffers — too large for the 8-bit stack. */
 LookupResults lookup_results;
 StockInfo     stock_info;
+
+/* Shared scratch buffers for network functions.  All network calls are
+ * sequential in this single-threaded app, so one copy of each suffices. */
+static char net_url[128];
+static char net_val[64];
+static char net_path[32];
+static char net_encoded[SYMBOL_LEN * 3 + 1];
+
+/* -----------------------------------------------------------------------
+ * Utilities
+ * ----------------------------------------------------------------------- */
 
 /**
  * @brief Check a FujiNet return code and abort on failure.
@@ -27,7 +40,16 @@ StockInfo     stock_info;
 void check_error(uint8_t err, const char *msg)
 {
     if (err != FN_ERR_OK) {
+        clrscr();
         printf("%s", msg);
+        gotoxy(0, MENU_ROW1);
+        print_centered("Press any key to return...");
+
+    clear_line(MENU_ROW2);
+
+    while (!kbhit())
+        ;
+
         cleanup();
         exit(1);
     }
@@ -46,8 +68,7 @@ void check_error(uint8_t err, const char *msg)
 void url_encode(const char *src, char *out, int out_len)
 {
     static const char hex[] = "0123456789ABCDEF";
-    int pos = 0;
-    unsigned char c;
+    unsigned char pos = 0, c;
 
     while (*src && pos < out_len - 3) {
         c = (unsigned char)*src++;
@@ -76,7 +97,7 @@ void url_encode(const char *src, char *out, int out_len)
 static long parse_decimal(const char *s)
 {
     long whole = 0, frac = 0;
-    int  neg = 0, frac_digits = 0;
+    unsigned char neg = 0, frac_digits = 0;
     const char *p = s;
 
     if (*p == '-') { neg = 1; p++; }
@@ -93,6 +114,10 @@ static long parse_decimal(const char *s)
     return neg ? -(whole * 100 + frac) : (whole * 100 + frac);
 }
 
+/* -----------------------------------------------------------------------
+ * Finnhub API calls
+ * ----------------------------------------------------------------------- */
+
 /**
  * @brief Fetch the current quote for a single stock and update its fields.
  *
@@ -103,27 +128,24 @@ static long parse_decimal(const char *s)
  */
 void get_stock_quote(Stock *s)
 {
-    static char url[128];
-    static char val[32];
-
-    sprintf(url, FINNHUB_STOCK_QUOTE, s->symbol, FINNHUB_API_KEY);
-    check_error(network_open(url, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE),
+    sprintf(net_url, FINNHUB_STOCK_QUOTE, s->symbol, FINNHUB_API_KEY);
+    check_error(network_open(net_url, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE),
                 "Quote open failed");
-    check_error(network_json_parse(url), "Quote parse failed");
+    check_error(network_json_parse(net_url), "Quote parse failed");
 
-    val[0] = '\0';
-    network_json_query(url, "/c", val);
-    s->price = parse_decimal(val);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/c", net_val);
+    s->price = parse_decimal(net_val);
 
-    val[0] = '\0';
-    network_json_query(url, "/d", val);
-    s->change = parse_decimal(val);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/d", net_val);
+    s->change = parse_decimal(net_val);
 
-    val[0] = '\0';
-    network_json_query(url, "/dp", val);
-    s->change_pct = (int)parse_decimal(val);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/dp", net_val);
+    s->change_pct = (int)parse_decimal(net_val);
 
-    network_close(url);
+    network_close(net_url);
 }
 
 /**
@@ -137,63 +159,60 @@ void get_stock_quote(Stock *s)
  */
 void get_stock_info(const char *symbol)
 {
-    static char url[128];
-    static char val[64];
-
     memset(&stock_info, 0, sizeof(StockInfo));
     strncpy(stock_info.symbol, symbol, SYMBOL_LEN - 1);
 
     set_progress_message("Retrieving Info");
-    sprintf(url, FINNHUB_COMPANY_PROFILE, symbol, FINNHUB_API_KEY);
-    check_error(network_open(url, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE),
-                "Profile open failed");
+    sprintf(net_url, FINNHUB_COMPANY_PROFILE, symbol, FINNHUB_API_KEY);
+    check_error(network_open(net_url, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE),
+                "Company info open failed");
     update_progress_message();
 
-    check_error(network_json_parse(url), "Profile parse failed");
+    check_error(network_json_parse(net_url), "Company info parse failed");
     update_progress_message();
 
-    val[0] = '\0';
-    network_json_query(url, "/name", val);
-    strncpy(stock_info.name, val, sizeof(stock_info.name) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/name", net_val);
+    strncpy(stock_info.name, net_val, sizeof(stock_info.name) - 1);
     update_progress_message();
 
-    val[0] = '\0';
-    network_json_query(url, "/country", val);
-    strncpy(stock_info.country, val, sizeof(stock_info.country) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/country", net_val);
+    strncpy(stock_info.country, net_val, sizeof(stock_info.country) - 1);
 
-    val[0] = '\0';
-    network_json_query(url, "/currency", val);
-    strncpy(stock_info.currency, val, sizeof(stock_info.currency) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/currency", net_val);
+    strncpy(stock_info.currency, net_val, sizeof(stock_info.currency) - 1);
 
-    val[0] = '\0';
-    network_json_query(url, "/exchange", val);
-    strncpy(stock_info.exchange, val, sizeof(stock_info.exchange) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/exchange", net_val);
+    strncpy(stock_info.exchange, net_val, sizeof(stock_info.exchange) - 1);
 
-    val[0] = '\0';
-    network_json_query(url, "/finnhubIndustry", val);
-    strncpy(stock_info.industry, val, sizeof(stock_info.industry) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/finnhubIndustry", net_val);
+    strncpy(stock_info.industry, net_val, sizeof(stock_info.industry) - 1);
 
-    val[0] = '\0';
-    network_json_query(url, "/ipo", val);
-    strncpy(stock_info.ipo, val, sizeof(stock_info.ipo) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/ipo", net_val);
+    strncpy(stock_info.ipo, net_val, sizeof(stock_info.ipo) - 1);
 
-    val[0] = '\0';
-    network_json_query(url, "/phone", val);
-    strncpy(stock_info.phone, val, sizeof(stock_info.phone) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/phone", net_val);
+    strncpy(stock_info.phone, net_val, sizeof(stock_info.phone) - 1);
 
-    val[0] = '\0';
-    network_json_query(url, "/weburl", val);
-    strncpy(stock_info.weburl, val, sizeof(stock_info.weburl) - 1);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/weburl", net_val);
+    strncpy(stock_info.weburl, net_val, sizeof(stock_info.weburl) - 1);
 
-    val[0] = '\0';
-    network_json_query(url, "/marketCapitalization", val);
-    stock_info.market_cap = atol(val);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/marketCapitalization", net_val);
+    stock_info.market_cap = atol(net_val);
 
-    val[0] = '\0';
-    network_json_query(url, "/shareOutstanding", val);
-    stock_info.shares_outstanding = atol(val);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/shareOutstanding", net_val);
+    stock_info.shares_outstanding = atol(net_val);
 
-    network_close(url);
+    network_close(net_url);
 }
 
 /**
@@ -205,44 +224,40 @@ void get_stock_info(const char *symbol)
  */
 void lookup_stock_ticker(const char *query)
 {
-    static char encoded[SYMBOL_LEN * 3 + 1];
-    static char url[128];
-    static char val[64];
-    static char path[32];
-    int  i, count;
+    unsigned char i, count;
 
     memset(&lookup_results, 0, sizeof(LookupResults));
 
-    url_encode(query, encoded, sizeof(encoded));
-    sprintf(url, FINNHUB_SYMBOL_LOOKUP, encoded, FINNHUB_API_KEY);
+    url_encode(query, net_encoded, sizeof(net_encoded));
+    sprintf(net_url, FINNHUB_SYMBOL_LOOKUP, net_encoded, FINNHUB_API_KEY);
 
-    check_error(network_open(url, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE), "Network open failed");
+    check_error(network_open(net_url, OPEN_MODE_HTTP_GET, OPEN_TRANS_NONE), "Symbol lookup open failed");
     update_progress_message();
 
-    check_error(network_json_parse(url), "JSON parse failed");
+    check_error(network_json_parse(net_url), "Symbol lookup parse failed");
     update_progress_message();
 
-    val[0] = '\0';
-    network_json_query(url, "/count", val);
-    count = (int)atoi(val);
+    net_val[0] = '\0';
+    network_json_query(net_url, "/count", net_val);
+    count = (unsigned char)atoi(net_val);
     if (count > MAX_LOOKUP_RESULTS)
         count = MAX_LOOKUP_RESULTS;
     lookup_results.count = count;
 
     for (i = 0; i < count; i++) {
         update_progress_message();
-        snprintf(path, sizeof(path), "/result/%d/description", i);
-        val[0] = '\0';
-        network_json_query(url, path, val);
-        strncpy(lookup_results.results[i].description, val,
+        snprintf(net_path, sizeof(net_path), "/result/%d/description", i);
+        net_val[0] = '\0';
+        network_json_query(net_url, net_path, net_val);
+        strncpy(lookup_results.results[i].description, net_val,
                 sizeof(lookup_results.results[i].description) - 1);
 
-        snprintf(path, sizeof(path), "/result/%d/displaySymbol", i);
-        val[0] = '\0';
-        network_json_query(url, path, val);
-        strncpy(lookup_results.results[i].displaySymbol, val,
+        snprintf(net_path, sizeof(net_path), "/result/%d/displaySymbol", i);
+        net_val[0] = '\0';
+        network_json_query(net_url, net_path, net_val);
+        strncpy(lookup_results.results[i].displaySymbol, net_val,
                 sizeof(lookup_results.results[i].displaySymbol) - 1);
     }
 
-    network_close(url);
+    network_close(net_url);
 }

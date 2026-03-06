@@ -30,6 +30,8 @@ HIRESTXT_LIB_SYMLINK  := libhirestxt.a
 		( cd "$(HIRESTXT_LIB_VERSION_DIR)" && ln -sf "$(HIRESTXT_LIB_SYMLINK)" "$(HIRESTXT_LIB_BASENAME)" ); \
 	fi; 
 
+ifeq ($(PLATFORM),coco)
 CFLAGS += -I$(HIRESTXT_LIB_VERSION_DIR)
 ASFLAGS += --asm-include-dir $(HIRESTXT_LIB_VERSION_DIR)
 LIBS +=  -L $(HIRESTXT_LIB_PATH) -lhirestxt
+endif

@@ -10,12 +10,12 @@
  * toolchain's cgetc() handles extended keys and returns these values.
  * ----------------------------------------------------------------------- */
 
-#define ARROW_UP    0x48  /* BIOS scan code: cursor up    */
-#define ARROW_DOWN  0x50  /* BIOS scan code: cursor down  */
-#define ARROW_LEFT  0x4B  /* BIOS scan code: cursor left  */
-#define ARROW_RIGHT 0x4D  /* BIOS scan code: cursor right */
-#define ENTER       0x0D  /* CR                           */
-#define BREAK       0x1B  /* ESC                          */
+#define ARROW_UP    0x1C  /* mapped from BIOS scan 0x48 by cgetc() */
+#define ARROW_DOWN  0x1D  /* mapped from BIOS scan 0x50 by cgetc() */
+#define ARROW_LEFT  0x1E  /* mapped from BIOS scan 0x4B by cgetc() */
+#define ARROW_RIGHT 0x1F  /* mapped from BIOS scan 0x4D by cgetc() */
+#define ENTER       0x0D  /* CR                                     */
+#define BREAK       0x1B  /* ESC                                    */
 #define NEWLINE     0x0A
 
 #endif /* CHARDEFS_H */

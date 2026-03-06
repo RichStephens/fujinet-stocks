@@ -121,7 +121,7 @@ void sort_stocks(void);
 void delete_stock(int index);
 void load_stocks(void);
 void save_stocks(void);
-void get_stock_quotes(void);
+clock_t get_stock_quotes(void);
 void set_progress_message(const char *msg);
 void update_progress_message(void);
 

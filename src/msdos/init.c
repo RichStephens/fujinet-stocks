@@ -1,12 +1,20 @@
+#include <stdio.h>
 #include "init.h"
+#include <conio.h>
 
 /**
  * @brief MS-DOS platform initialization.
  *
- * Sets up platform-dependent resources before the main loop runs.
+ * Disables stdout buffering so every printf/putchar call goes straight to
+ * the DOS console driver.  Without this, output is flushed in a batch when
+ * the buffer fills, after gotoxy has already moved the cursor elsewhere,
+ * which scrambles the screen layout.
  */
 void init(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+    set_video_mode(VIDEO_MODE_40COL);
+    set_screen_bg_blue();
 }
 
 /**
@@ -16,4 +24,8 @@ void init(void)
  */
 void cleanup(void)
 {
+    restore_screen_bg();
+    set_video_mode(VIDEO_MODE_80COL);
+    if (!doesclrscrafterexit())
+        clrscr();
 }

@@ -9,6 +9,15 @@
 #include "chardefs.h"
 #include "get_line.h"
 
+/**
+ * @brief Read a line of input with echo, backspace, and cursor support.
+ *
+ * Handles printable characters, left-arrow/DEL as backspace, ENTER to
+ * confirm, and BREAK to cancel (returns an empty string).
+ *
+ * @param buf     Output buffer for the entered string.
+ * @param max_len Maximum number of characters (including NUL terminator).
+ */
 void get_line(char* buf, uint8_t max_len) {
 	uint8_t c;
 	uint8_t i = 0;
@@ -20,7 +29,13 @@ void get_line(char* buf, uint8_t max_len) {
 	do {
 		c = cgetc();
 
-		if (isprint(c)) {
+		if (c == BREAK) {
+			buf[0] = '\0';
+			cursor(0);
+			revers(0);
+			return;
+		}
+		else if (isprint(c)) {
 			gotox(start_x + i);
 			if (i == (max_len - 1)) {
 				// we're at the end, set reverse and invisible cursor
