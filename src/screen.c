@@ -695,7 +695,9 @@ void main_loop(void)
 
             case 'R': case 'r':
                 clear_line(TICKER_ROW);
+                print_app_name(true);
                 last_quote_time     = get_stock_quotes();
+                print_app_name(false);
                 need_scroll_rebuild = true;
                 need_redraw         = true;
                 break;
