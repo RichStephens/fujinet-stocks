@@ -17,8 +17,6 @@ int main(void)
 
     save_stocks();
     cleanup();
-    if (!doesclrscrafterexit())
-        clrscr();
 
     return 0;
 }

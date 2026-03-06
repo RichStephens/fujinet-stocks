@@ -15,6 +15,7 @@ void init(void)
     setvbuf(stdout, NULL, _IONBF, 0);
     set_video_mode(VIDEO_MODE_40COL);
     set_screen_bg_blue();
+    cursor(0);
 }
 
 /**
@@ -24,8 +25,7 @@ void init(void)
  */
 void cleanup(void)
 {
-    restore_screen_bg();
+    cursor(1);
     set_video_mode(VIDEO_MODE_80COL);
-    if (!doesclrscrafterexit())
-        clrscr();
+    restore_screen_bg();
 }

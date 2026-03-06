@@ -233,7 +233,17 @@ void revers(uint8_t on)
  */
 void cursor(bool on)
 {
-    _displaycursor(on ? _GCURSORON : _GCURSOROFF);
+    static union REGS r;
+    r.h.ah = 0x01;              /* Set Cursor Type */
+    r.h.bh = 0x00;
+    if (on) {
+        r.h.ch = 0x06;          /* normal: start scan line 6 */
+        r.h.cl = 0x07;          /* end scan line 7           */
+    } else {
+        r.h.ch = 0x20;          /* bit 5 set = cursor hidden */
+        r.h.cl = 0x00;
+    }
+    int86(0x10, &r, &r);
 }
 
 /**
@@ -251,6 +261,7 @@ void get_line(char *buf, uint8_t max_len)
     uint8_t i = 0;
 
     buf[0] = '\0';
+    cursor(1);
 
     do {
         /* cgetc() is non-blocking; spin until a key arrives */
@@ -259,6 +270,7 @@ void get_line(char *buf, uint8_t max_len)
 
         if (c == (uint8_t)BREAK) {
             buf[0] = '\0';
+            cursor(0);
             return;
         } else if (c == '\b') {
             if (i > 0) {
@@ -276,6 +288,7 @@ void get_line(char *buf, uint8_t max_len)
 
     buf[i] = '\0';
     putchar('\n');
+    cursor(0);
 }
 
 /**
@@ -288,5 +301,5 @@ void get_line(char *buf, uint8_t max_len)
  */
 uint8_t doesclrscrafterexit(void)
 {
-    return 0;
+    return 1;
 }

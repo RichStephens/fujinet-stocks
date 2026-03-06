@@ -9,6 +9,7 @@
  */
 void init(void)
 {
+    cursor(0);
 }
 
 /**
@@ -18,6 +19,7 @@ void init(void)
  */
 void cleanup(void)
 {
+    cursor(1);
     if (!doesclrscrafterexit())
         clrscr();
 }

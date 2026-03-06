@@ -6,7 +6,6 @@
 #define SCREEN_BUFFER (byte*) 0xA00
 
 byte colorset = 0;
-bool cursor_on = false;
 uint8_t inverse_mode = 0;
 
 /**
@@ -106,16 +105,10 @@ int wherey(void)
  */
 void cursor(bool onoff)
 {
-    if (!cursor_on && onoff)
-    {
+    if (onoff)
         animateCursor();
-    }
-    else if (cursor_on && !onoff)
-    {
+    else
         removeCursor();
-    }
-
-    cursor_on = onoff;
 }
 
 
@@ -169,8 +162,7 @@ void get_line(char *buf, uint8_t max_len)
 
     do
     {
-        cursor(true);
-        c = cgetc();
+        c = waitkey(true);
         if (c == BREAK)
         {
             buf[0] = '\0';

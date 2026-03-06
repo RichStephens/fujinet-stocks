@@ -1,5 +1,6 @@
 #include <cc65.h>
 #include <conio.h>
+#include <atari.h>
 #include "init.h"
 
 /**
@@ -9,6 +10,8 @@
  */
 void init(void)
 {
+    cursor(0);
+    OS.crsinh = 1;
 }
 
 /**
@@ -18,6 +21,8 @@ void init(void)
  */
 void cleanup(void)
 {
+    cursor(1);
+    OS.crsinh = 0;
     if (!doesclrscrafterexit())
         clrscr();
 }
