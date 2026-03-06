@@ -11,11 +11,7 @@ up, add, edit, and delete stocks — all from a 40/42-column text screen.
 | CoCo (Color Computer) | cmoc |
 | Apple II | cc65 |
 | Atari | cc65 |
-| Commodore 64 | cc65 |
-| Adam | z88dk |
-| Adam (CP/M) | z88dk |
-| MS-DOS | wcc |
-| MSX (ROM) | cc65 |
+| MS-DOS | Open Watcom C |
 
 ## Features
 
@@ -50,19 +46,22 @@ The stock list is centred in the content area as two columns of five:
 | Key | Action |
 |-----|--------|
 | Arrow keys | Move selection |
-| `S` | Toggle stock list display |
+| `1`–`9`, `0` | Jump to slot 1–9, 10 |
+| `H` | Hide the stock list |
+| `S` | Show the stock list |
 | `E` | Edit the selected slot (type a new symbol) |
 | `D` | Delete the selected stock |
 | `I` | Show company info for the selected stock |
 | `L` | Look up a symbol by name or partial ticker |
-| `BREAK` | Quit (saves stock list before exiting) |
+| `R` | Refresh quotes now |
+| `BREAK`/`ESC` | Quit (saves stock list before exiting) |
 
 ## Requirements
 
 - A FujiNet device connected to your 8-bit computer
 - A free [Finnhub](https://finnhub.io) API key
-- Platform toolchain: **cmoc** (CoCo), **cc65** (Apple II, Atari, C64), Open Watcom C (msdos)
-- FujiNet library **4.10.0** (fetched automatically by the build)
+- Platform toolchain: **cmoc** (CoCo), **cc65** (Apple II, Atari), **Open Watcom C** (MS-DOS)
+- FujiNet library (fetched automatically by the build)
 
 ## Configuration
 
@@ -80,11 +79,7 @@ Build for a specific platform:
 make coco
 make apple2
 make atari
-make c64
-make adam
 make msdos
-make msxrom
-make adam_cpm
 ```
 
 Build all configured platforms:
