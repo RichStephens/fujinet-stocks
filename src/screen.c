@@ -119,8 +119,10 @@ void set_progress_message(const char *msg)
  */
 void update_progress_message(void)
 {
-    if (strlen(progress_msg) < sizeof(progress_msg) - 1) {
-        strcat(progress_msg, ".");
+    uint8_t len = (uint8_t)strlen(progress_msg);
+    if (len < sizeof(progress_msg) - 1) {
+        progress_msg[len]     = '.';
+        progress_msg[len + 1] = '\0';
     }
     gotoxy(0, TICKER_ROW);
     printf("%s", progress_msg);
@@ -145,10 +147,8 @@ void draw_app_name(bool show_wait, bool show_version)
         gotoxy(0, MENU_ROW1 - 1);
         draw_centered("*** Please Wait ***");
     } else if (show_version) {
-#ifndef _CMOC_VERSION_
         gotoxy(0, MENU_ROW1 - 1);
         draw_centered("Version: " GIT_VERSION);
-#endif
     }
 }
 
@@ -193,34 +193,25 @@ static void draw_menu(bool show_stocks, bool lookup)
  */
 static void draw_ticker_row(void)
 {
-    uint8_t col;
-    int           idx;
-    char c;
+    unsigned int idx = scroll_pos;
+    uint8_t      col;
+    char         c;
 
     gotoxy(0, TICKER_ROW);
     for (col = 0; col < SCREEN_WIDTH - 1; col++) {
-        idx = (scroll_pos + col) % scroll_len;
-        c   = scroll_buf[idx];
+        c = scroll_buf[idx];
         if ((uint8_t)c < 0x20)
             c = ' ';
         putchar(c);
+        if (++idx >= scroll_len)
+            idx = 0;
     }
-    /* Write the last ticker cell without advancing the cursor.
-     * On cc65 targets, putchar() at the last column of any row advances
-     * the cursor to the next row, which pushes all subsequent content down. */
-#if defined(BUILD_APPLE2) || defined(BUILD_ATARI)
-    idx = (scroll_pos + SCREEN_WIDTH - 1) % scroll_len;
-    c   = scroll_buf[idx];
+    /* Last cell via cputcxy: avoids cursor-advance at row end on cc65 targets.
+     * On CoCo/MSDOS, cputcxy is defined as gotoxy+putchar. */
+    c = scroll_buf[idx];
     if ((uint8_t)c < 0x20)
         c = ' ';
     cputcxy((uint8_t)(SCREEN_WIDTH - 1), TICKER_ROW, c);
-#else
-    idx = (scroll_pos + SCREEN_WIDTH - 1) % scroll_len;
-    c   = scroll_buf[idx];
-    if ((uint8_t)c < 0x20)
-        c = ' ';
-    putchar(c);
-#endif
 }
 
 /* -----------------------------------------------------------------------
@@ -466,7 +457,7 @@ static bool edit_stock(uint8_t selected)
  * @param return_slot   Slot index to store the chosen symbol into.
  * @param update_stocks If false, ENTER returns without modifying the stock list.
  */
-static bool lookup_screen(int return_slot, bool update_stocks)
+static bool lookup_screen(uint8_t return_slot, bool update_stocks)
 {
     uint8_t lk_sel = 0, i;
     char key;
