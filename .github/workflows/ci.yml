@@ -30,6 +30,12 @@ jobs:
       - name: Fix git safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Install atari-tools (atr)
+        if: matrix.platform == 'atari'
+        run: |
+          git clone --depth=1 https://github.com/jhallen/atari-tools /tmp/atari-tools
+          cd /tmp/atari-tools && make && cp atr /usr/local/bin/
+
       - name: Build
         run: make ${{ matrix.platform }}/r2r
 
