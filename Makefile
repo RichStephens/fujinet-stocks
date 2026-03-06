@@ -12,6 +12,8 @@ PLATFORMS = coco apple2 atari c64 adam msdos msxrom adam_cpm
 SRC_DIRS = src src/%PLATFORM%
 INCLUDE_DIRS = include include/%PLATFORM%
 
+CFLAGS = -DBUILD_$(PLATFORM_UC)
+
 # FUJINET_LIB can be
 # - a version number such as 4.7.6
 # - a directory which contains the libs for each platform
@@ -19,7 +21,7 @@ INCLUDE_DIRS = include include/%PLATFORM%
 # - a URL to a git repo
 # - empty which will use whatever is the latest
 # - undefined, no fujinet-lib will be used
-FUJINET_LIB = 4.10.0 
+FUJINET_LIB = https://github.com/FozzTexx/fujinet-lib-experimental.git
 
 # Define extra dirs ("combos") that expand with a platform.
 # Format: platform+=combo1,combo2

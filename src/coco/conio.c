@@ -9,6 +9,12 @@ byte colorset = 0;
 bool cursor_on = false;
 unsigned char inverse_mode = 0;
 
+/**
+ * @brief Initialise the 42-column hi-res text screen via the hirestxt library.
+ *
+ * Configures PMODE 4 graphics for the screen buffer, redirects printf() to
+ * the 42x24 text surface, and wires up the 60 Hz TIMER counter.
+ */
 void hirestxt_init(void)
 {
     // Define a `HiResTextScreenInit` object:
@@ -31,6 +37,9 @@ void hirestxt_init(void)
     initHiResTextScreen(&init);
 }
 
+/**
+ * @brief Shut down the hi-res text screen and restore normal graphics mode.
+ */
 void hirestxt_close(void)
 {
     closeHiResTextScreen();
@@ -40,6 +49,11 @@ void hirestxt_close(void)
     clrscr();
 }
 
+/**
+ * @brief Toggle between the two CoCo hi-res text color sets.
+ *
+ * colorset 0 is the default; colorset 1 is the alternate palette.
+ */
 void switch_colorset(void)
 {
     if (colorset == 0)
@@ -54,21 +68,42 @@ void switch_colorset(void)
     screen(1, colorset);
 }
 
+/**
+ * @brief Move the cursor to the given 0-based (col, row) position.
+ *
+ * @param x Column (0-based).
+ * @param y Row (0-based).
+ */
 void gotoxy(int x, int y)
 {
     moveCursor((byte) x, (byte) y);
 }
 
+/**
+ * @brief Return the current cursor column.
+ *
+ * @return 0-based column index.
+ */
 int wherex(void)
 {
     return (int) getCursorColumn();
 }
 
+/**
+ * @brief Return the current cursor row.
+ *
+ * @return 0-based row index.
+ */
 int wherey(void)
 {
     return (int) getCursorRow();
 }
 
+/**
+ * @brief Show or hide the blinking cursor.
+ *
+ * @param onoff true to enable, false to disable.
+ */
 void cursor(bool onoff)
 {
     if (!cursor_on && onoff)
@@ -84,38 +119,49 @@ void cursor(bool onoff)
 }
 
 
-char cgetc()
+static char lastKey = 0;
+
+/**
+ * @brief Return non-zero if a key is waiting, without consuming it.
+ *
+ * @return Non-zero if a key is available, 0 otherwise.
+ */
+uint8_t kbhit(void)
 {
-    byte shift = false;
-    byte k;
-
-    while (true)
-    {
-        if (cursor_on)
-        {
-            k = waitKeyBlinkingCursor();
-        }
-        else
-        {
-            k = inkey();
-        }
-
-        if (isKeyPressed(KEY_PROBE_SHIFT, KEY_BIT_SHIFT))
-        {
-            shift = 0x00;
-        }
-        else
-        {
-            if (k > '@' && k < '[')
-            {
-                shift = 0x20;
-            }
-        }
-
-        return (char)k + shift;
-    }
+    return (uint8_t)(lastKey || (lastKey = inkey()) || (lastKey = inkey()));
 }
 
+/**
+ * @brief Wait for and return the next keypress.
+ *
+ * Consumes the key buffered by kbhit() if one is pending, otherwise
+ * polls inkey() until a key arrives.
+ *
+ * @return The character code of the key pressed.
+ */
+char cgetc(void)
+{
+    char key = lastKey;
+
+    lastKey = 0;
+
+    while (!key)
+    {
+        key = (char)inkey();
+    }
+
+    return key;
+}
+
+/**
+ * @brief Read a line of input with echo and basic editing support.
+ *
+ * Handles printable characters, left-arrow as backspace, BREAK to cancel
+ * (returns empty string), and ENTER to confirm.
+ *
+ * @param buf     Output buffer for the entered string.
+ * @param max_len Maximum number of characters (including NUL terminator).
+ */
 void get_line(char *buf, uint8_t max_len)
 {
     uint8_t c;
@@ -155,10 +201,10 @@ void get_line(char *buf, uint8_t max_len)
     cursor(false);
 }
 
-/* revers()
- * Enable or disable inverse video mode.
- * on = 1 turns inverse on; on = 0 turns it off.
- * State is tracked in inverse_mode so callers can query it if needed.
+/**
+ * @brief Enable or disable inverse video mode.
+ *
+ * @param on 1 to enable inverse, 0 to disable.
  */
 void revers(unsigned char on)
 {
@@ -166,10 +212,10 @@ void revers(unsigned char on)
     setInverseVideoMode((byte)on);
 }
 
-/* sync_frame()
- * Block until the 60 Hz TIMER advances by one tick.
- * getTimer() is a cmoc/CoCo runtime function that reads Color Basic's
- * two-byte counter at 0x0112.  Each tick is ~16.7 ms.
+/**
+ * @brief Block until the 60 Hz TIMER advances by one tick (~16.7 ms).
+ *
+ * Reads Color Basic's two-byte counter at 0x0112 via getTimer().
  */
 void sync_frame(void)
 {
@@ -178,3 +224,15 @@ void sync_frame(void)
         ;
 }
 
+/**
+ * @brief Report whether the platform clears the screen on exit.
+ *
+ * Returns 1 because hirestxt_close() clears the screen and coldStart()
+ * never returns, so no explicit clrscr() is needed in cleanup().
+ *
+ * @return Always 1.
+ */
+unsigned char doesclrscrafterexit(void)
+{
+    return 1;
+}

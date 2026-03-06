@@ -15,6 +15,14 @@ static unsigned char     last_vbl = 0;
 /* RDVBL soft-switch: bit 7 set during vertical blanking (IIe+) */
 #define RDVBL  (*(volatile unsigned char *)0xC019)
 
+/**
+ * @brief Return the current tick count, updated from the VBL soft-switch.
+ *
+ * Counts rising edges of bit 7 on RDVBL ($C019) to produce ~60 ticks/sec,
+ * matching CLOCKS_PER_SEC for the cc65 apple2 target.
+ *
+ * @return Elapsed tick count since the program started.
+ */
 clock_t clock(void)
 {
     unsigned char vbl = RDVBL & 0x80;

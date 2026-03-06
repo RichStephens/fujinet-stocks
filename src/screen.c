@@ -16,12 +16,30 @@
 #include <network.h>
 #include "stocks.h"
 
+/* cc65's revers() only affects cputc/cputs, not printf/putchar.
+ * Use cputs() for any string printed inside a revers() block on cc65. */
+#if defined(BUILD_APPLE2) || defined(BUILD_ATARI)
+#  define print_str(s) cputs(s)
+#else
+#  define print_str(s) printf("%s", (s))
+#endif
+
 /** @brief Scroll buffer and state for the ticker tape at row 0. */
-#define SCROLL_BUF_LEN  512
+#define SCROLL_BUF_LEN  384
 static char  scroll_buf[SCROLL_BUF_LEN];
 static int   scroll_len  = 0;
 static int   scroll_pos  = 0;
 static int   frame_count = 0;
+
+/* Shared symbol/scratch buffer.  draw_slot, draw_lookup_row, edit_stock,
+ * lookup_screen, and show_stock_info are all mutually exclusive (each is
+ * either modal or exclusive to a particular screen state), so one buffer
+ * serves all.  Size 16 accommodates the longest use (phone_str). */
+static char sym_buf[16];
+
+/* -----------------------------------------------------------------------
+ * Screen primitives
+ * ----------------------------------------------------------------------- */
 
 /**
  * @brief Write n space characters to stdout.
@@ -41,7 +59,7 @@ static void fill_spaces(int n)
  *
  * @param s The string to centre.
  */
-static void print_centered(const char *s)
+void print_centered(const char *s)
 {
     fill_spaces((SCREEN_WIDTH - (int)strlen(s)) / 2);
     printf("%s", s);
@@ -54,25 +72,82 @@ static void print_centered(const char *s)
  */
 void clear_line(int row)
 {
+    /* On cc65 targets (Atari, Apple II) use cclearxy() which writes directly
+     * to screen RAM without going through the OS text device, avoiding the
+     * logical-line cursor-wrap issue that shifts subsequent gotoxy() targets.
+     * All other platforms can safely use putchar via fill_spaces. */
+#if defined(BUILD_APPLE2) || defined(BUILD_ATARI)
+    cclearxy(0, (unsigned char)row, SCREEN_WIDTH);
+    gotoxy(0, row);
+#else
     gotoxy(0, row);
     fill_spaces(SCREEN_WIDTH);
+    gotoxy(0, row);
+#endif
 }
 
 /**
- * @brief Write a SCREEN_WIDTH-character window from scroll_buf into row 0.
+ * @brief Blank rows 1-21 without touching the ticker or menu rows.
  */
-static void draw_ticker_row(void)
+static void clear_content_area(void)
 {
-    int  col, idx;
-    char c;
+    unsigned char row;
+    for (row = CONTENT_TOP_ROW; row < MENU_ROW1 - 2; row++) {
+        gotoxy(0, row);
+        clear_line(row);
+    }
+}
 
+/* -----------------------------------------------------------------------
+ * Progress display
+ * ----------------------------------------------------------------------- */
+
+/** @brief Progress message displayed on the ticker row during network calls. */
+static char progress_msg[SCREEN_WIDTH + 1];
+
+/**
+ * @brief Set the progress message and display it on the ticker row.
+ *
+ * @param msg Message to display.
+ */
+void set_progress_message(const char *msg)
+{
+    strncpy(progress_msg, msg, sizeof(progress_msg) - 1);
+    progress_msg[sizeof(progress_msg) - 1] = '\0';
     gotoxy(0, TICKER_ROW);
-    for (col = 0; col < SCREEN_WIDTH; col++) {
-        idx = (scroll_pos + col) % scroll_len;
-        c   = scroll_buf[idx];
-        if ((unsigned char)c < 0x20)
-            c = ' ';
-        putchar(c);
+    printf("%s", progress_msg);
+}
+
+/**
+ * @brief Append a dot to the progress message and redisplay it on the ticker row.
+ */
+void update_progress_message(void)
+{
+    if (strlen(progress_msg) < sizeof(progress_msg) - 1) {
+        strcat(progress_msg, ".");
+    }
+    gotoxy(0, TICKER_ROW);
+    printf("%s", progress_msg);
+}
+
+/* -----------------------------------------------------------------------
+ * App chrome
+ * ----------------------------------------------------------------------- */
+
+/**
+ * @brief Print the application title and optionally a "Please Wait" banner.
+ *
+ * @param print_wait If true, prints "*** Please Wait ***" below the title.
+ */
+void print_app_name(bool print_wait)
+{
+    gotoxy(0, MENU_ROW1 - 2);
+    print_centered("*** FujiNet Stocks ***");
+
+    clear_line(MENU_ROW1 - 1);
+    if (print_wait) {
+        gotoxy(0, MENU_ROW1 - 1);
+        print_centered("*** Please Wait ***");
     }
 }
 
@@ -87,6 +162,7 @@ static void draw_ticker_row(void)
  */
 static void draw_menu(bool show_stocks, bool lookup)
 {
+    print_app_name(false);
     clear_line(MENU_ROW1);
     clear_line(MENU_ROW2);
 
@@ -94,18 +170,60 @@ static void draw_menu(bool show_stocks, bool lookup)
     if (lookup)
         print_centered("Arrows:Select  <ENTER>:Choose");
     else if (show_stocks)
-        print_centered("<H>ide <E>dit <D>elete <I>nfo <L>ookup");
+        print_centered("<H>ide <E>dit <D>el <I>nfo <L>ookup");
     else
         print_centered("<S>how <L>ookup");
 
     gotoxy(0, MENU_ROW2);
     if (lookup)
-        print_centered("<BREAK>:Return");
+        print_centered("<" BREAK_KEY_NAME ">:Return");
     else if (show_stocks)
-        print_centered("0-9/Arrows:Select  <BREAK>:Quit");
+        print_centered("0-9/Arrows:Sel <R>efresh <" BREAK_KEY_NAME ">:Quit");
     else
-        print_centered("<BREAK>:Quit");
+        print_centered("<" BREAK_KEY_NAME ">:Quit");
 }
+
+/* -----------------------------------------------------------------------
+ * Ticker
+ * ----------------------------------------------------------------------- */
+
+/**
+ * @brief Write a SCREEN_WIDTH-character window from scroll_buf into row 0.
+ */
+static void draw_ticker_row(void)
+{
+    int  col, idx;
+    char c;
+
+    gotoxy(0, TICKER_ROW);
+    for (col = 0; col < SCREEN_WIDTH - 1; col++) {
+        idx = (scroll_pos + col) % scroll_len;
+        c   = scroll_buf[idx];
+        if ((unsigned char)c < 0x20)
+            c = ' ';
+        putchar(c);
+    }
+    /* Write the last ticker cell without advancing the cursor.
+     * On cc65 targets, putchar() at the last column of any row advances
+     * the cursor to the next row, which pushes all subsequent content down. */
+#if defined(BUILD_APPLE2) || defined(BUILD_ATARI)
+    idx = (scroll_pos + SCREEN_WIDTH - 1) % scroll_len;
+    c   = scroll_buf[idx];
+    if ((unsigned char)c < 0x20)
+        c = ' ';
+    cputcxy((unsigned char)(SCREEN_WIDTH - 1), TICKER_ROW, c);
+#else
+    idx = (scroll_pos + SCREEN_WIDTH - 1) % scroll_len;
+    c   = scroll_buf[idx];
+    if ((unsigned char)c < 0x20)
+        c = ' ';
+    putchar(c);
+#endif
+}
+
+/* -----------------------------------------------------------------------
+ * Stock list
+ * ----------------------------------------------------------------------- */
 
 /**
  * @brief Render one stock slot at its pre-computed screen position.
@@ -119,20 +237,18 @@ static void draw_menu(bool show_stocks, bool lookup)
  */
 static void draw_slot(int i, bool highlighted)
 {
-    char sym[11];
-
     if (stocks[i].symbol[0] != '\0') {
-        snprintf(sym, sizeof(sym), "%-10s", stocks[i].symbol);
+        snprintf(sym_buf, 11, "%-10s", stocks[i].symbol);
     } else {
-        memset(sym, ' ', 10);
-        sym[10] = '\0';
+        memset(sym_buf, ' ', 10);
+        sym_buf[10] = '\0';
     }
 
     gotoxy(stock_coords[i].x, stock_coords[i].y);
     printf("%2d: ", i + 1);
-    if (highlighted) revers(1);
-    printf("%s", sym);
-    if (highlighted) revers(0);
+    revers(highlighted);
+    print_str(sym_buf);
+    revers(0);
 }
 
 /**
@@ -142,35 +258,49 @@ static void draw_slot(int i, bool highlighted)
  */
 static void draw_stock_list(int selected)
 {
-    int i;
+    unsigned char i;
     for (i = 0; i < MAX_STOCKS; i++)
         draw_slot(i, i == selected);
 }
 
-/**
- * @brief Blank rows 1-21 without touching the ticker or menu rows.
- */
-static void clear_content_area(void)
-{
-    int row;
-    for (row = CONTENT_TOP_ROW; row <= CONTENT_BOT_ROW; row++) {
-        gotoxy(0, row);
-        fill_spaces(SCREEN_WIDTH);
-    }
-}
+/* -----------------------------------------------------------------------
+ * Lookup UI
+ * ----------------------------------------------------------------------- */
 
 /**
- * @brief Display the detail info screen for the selected stock.
+ * @brief Render one row from the global lookup_results.
  *
- * Uses global stock_info (filled by get_stock_info()).
- *
- * @param selected Slot index of the stock to display.
+ * @param i           Result index to render.
+ * @param highlighted true to render the row in inverse video.
  */
+static void draw_lookup_row(int i, bool highlighted)
+{
+    static char line[41];
+    static char desc[28];
+
+    strncpy(sym_buf, lookup_results.results[i].displaySymbol, 12); sym_buf[12] = '\0';
+    strncpy(desc,    lookup_results.results[i].description,   27); desc[27]    = '\0';
+    snprintf(line, sizeof(line), "%-12s %-27s", sym_buf, desc);
+    line[40] = '\0';
+    gotoxy(0, 4 + i);
+    revers(highlighted);
+    print_str(line);
+    revers(0);
+}
+
+/* -----------------------------------------------------------------------
+ * Formatting utilities  (used by the stock info screen)
+ * ----------------------------------------------------------------------- */
+
 /**
  * @brief Format a value in millions as a human-readable string with T/B/M suffix.
  *
  * Uses integer arithmetic only (no floats).  Examples:
  *   3878463 -> "3.87T",  250000 -> "250.00B",  500 -> "500.00M"
+ *
+ * @param millions Value in millions to format.
+ * @param out      Output buffer.
+ * @param out_len  Size of the output buffer.
  */
 static void format_large_num(long millions, char *out, int out_len)
 {
@@ -200,6 +330,10 @@ static void format_large_num(long millions, char *out, int out_len)
  *   11 digits starting with 1 -> "1-XXX-XXX-XXXX"
  *   10 digits              -> "XXX-XXX-XXXX"
  *   anything else          -> raw string as-is
+ *
+ * @param raw     Input phone string from the API.
+ * @param out     Output buffer.
+ * @param out_len Size of the output buffer.
  */
 static void format_phone(const char *raw, char *out, int out_len)
 {
@@ -235,21 +369,29 @@ static void format_phone(const char *raw, char *out, int out_len)
     out[out_len - 1] = '\0';
 }
 
+/* -----------------------------------------------------------------------
+ * Modal screens
+ * ----------------------------------------------------------------------- */
+
+/**
+ * @brief Display the detail info screen for the selected stock.
+ *
+ * Uses global stock_info (filled by get_stock_info()).
+ *
+ * @param selected Slot index of the stock to display.
+ */
 static void show_stock_info(int selected)
 {
-    char cap_str[12];
-    char shares_str[12];
-    char phone_str[16];
-
     if (stocks[selected].symbol[0] == '\0')
         return;
 
     clrscr();
+    print_app_name(true);
     get_stock_info(stocks[selected].symbol);
-
-    format_large_num(stock_info.market_cap,         cap_str,    sizeof(cap_str));
-    format_large_num(stock_info.shares_outstanding, shares_str, sizeof(shares_str));
-    format_phone(stock_info.phone, phone_str, sizeof(phone_str));
+    clear_line(MENU_ROW1 - 1);
+    clear_line(TICKER_ROW);
+    gotoxy(0, TICKER_ROW);
+    print_centered("*** Stock Information ***");
 
     gotoxy(0, 5);  printf("Symbol  : %s",  stock_info.symbol);
     gotoxy(0, 6);  printf("Company : %s",  stock_info.name);
@@ -258,19 +400,27 @@ static void show_stock_info(int selected)
                           stock_info.country, stock_info.currency);
     gotoxy(0, 9);  printf("Industry: %s",  stock_info.industry);
     gotoxy(0, 10); printf("IPO     : %s",  stock_info.ipo);
-    gotoxy(0, 11); printf("Mkt Cap : %s",  cap_str);
-    gotoxy(0, 12); printf("Shares  : %s",  shares_str);
-    gotoxy(0, 13); printf("Phone   : %s",  phone_str);
+
+    format_large_num(stock_info.market_cap, sym_buf, sizeof(sym_buf));
+    gotoxy(0, 11); printf("Mkt Cap : %s",  sym_buf);
+
+    format_large_num(stock_info.shares_outstanding, sym_buf, sizeof(sym_buf));
+    gotoxy(0, 12); printf("Shares  : %s",  sym_buf);
+
+    format_phone(stock_info.phone, sym_buf, sizeof(sym_buf));
+    gotoxy(0, 13); printf("Phone   : %s",  sym_buf);
+
     gotoxy(0, 14); printf("Web     : %s",  stock_info.weburl);
 
+    clear_line(MENU_ROW1);
     gotoxy(0, MENU_ROW1);
     print_centered("Press any key to return...");
 
-    gotoxy(0, MENU_ROW2);
-    fill_spaces(SCREEN_WIDTH - 1);
+    clear_line(MENU_ROW2);
 
-    while (cgetc() == 0)
+    while (!kbhit())
         ;
+    cgetc();
 }
 
 /**
@@ -280,74 +430,24 @@ static void show_stock_info(int selected)
  * symbol field.
  *
  * @param selected Slot index to edit.
+ * @return true if the user committed a new symbol, false if aborted (BREAK).
  */
-static void edit_stock(int selected)
+static bool edit_stock(int selected)
 {
-    char new_sym[SYMBOL_LEN];
-
-    new_sym[0] = '\0';
+    sym_buf[0] = '\0';
     gotoxy(stock_coords[selected].x, stock_coords[selected].y);
     printf("%2d: ", selected + 1);
 
-    get_line(new_sym, SYMBOL_LEN);
-    if (new_sym[0] != '\0') {
-        strupr(new_sym);
-        strncpy(stocks[selected].symbol, new_sym, SYMBOL_LEN);
+    get_line(sym_buf, SYMBOL_LEN);
+    if (sym_buf[0] != '\0') {
+        strupr(sym_buf);
+        strncpy(stocks[selected].symbol, sym_buf, SYMBOL_LEN);
         stocks[selected].price = 0;
         stocks[selected].change = 0;
         stocks[selected].change_pct = 0;
+        return true;
     }
-}
-
-/**
- * @brief Render one row from the global lookup_results.
- *
- * @param i           Result index to render.
- * @param highlighted true to render the row in inverse video.
- */
-static void draw_lookup_row(int i, bool highlighted)
-{
-    char line[41];
-    char sym[13];
-    char desc[28];
-
-    strncpy(sym,  lookup_results.results[i].displaySymbol, 12); sym[12]  = '\0';
-    strncpy(desc, lookup_results.results[i].description,   27); desc[27] = '\0';
-    snprintf(line, sizeof(line), "%-12s %-27s", sym, desc);
-    line[40] = '\0';
-    gotoxy(0, 4 + i);
-    if (highlighted) revers(1);
-    printf("%s", line);
-    if (highlighted) revers(0);
-}
-
-
-/** @brief Progress message displayed on the ticker row during network calls. */
-static char progress_msg[SCREEN_WIDTH + 1];
-
-/**
- * @brief Set the progress message and display it on the ticker row.
- *
- * @param msg Message to display.
- */
-void set_progress_message(const char *msg)
-{
-    strncpy(progress_msg, msg, sizeof(progress_msg) - 1);
-    progress_msg[sizeof(progress_msg) - 1] = '\0';
-    gotoxy(0, TICKER_ROW);
-    printf("%s", progress_msg);
-}
-
-/**
- * @brief Append a dot to the progress message and redisplay it on the ticker row.
- */
-void update_progress_message(void)
-{
-    if (strlen(progress_msg) < sizeof(progress_msg) - 1) {
-        strcat(progress_msg, ".");
-    }
-    gotoxy(0, TICKER_ROW);
-    printf("%s", progress_msg);
+    return false;
 }
 
 /**
@@ -361,35 +461,39 @@ void update_progress_message(void)
  */
 static bool lookup_screen(int return_slot, bool update_stocks)
 {
-    char query[SYMBOL_LEN];
-    int  lk_sel = 0;
-    int  i;
+    unsigned char lk_sel = 0, i;
     char key;
 
-    query[0] = '\0';
+    sym_buf[0] = '\0';
     clrscr();
+    print_app_name(false);
     gotoxy(0, TICKER_ROW);
-    printf("Lookup (enter search term): ");
-    get_line(query, SYMBOL_LEN);
-    if (query[0] == '\0')
+    printf("Enter search term - <" BREAK_KEY_NAME "> to cancel:");
+    gotoxy(0, TICKER_ROW + 1);
+    printf("> ");
+    get_line(sym_buf, SYMBOL_LEN);
+    clear_line(TICKER_ROW);
+    clear_line(TICKER_ROW + 1);
+    if (sym_buf[0] == '\0')
         return false;
 
-    clear_line(TICKER_ROW);
-    set_progress_message("Looking up");
-    lookup_stock_ticker(query);   /* fills global lookup_results */
+    print_app_name(true);
+    set_progress_message("Searching");
+    lookup_stock_ticker(sym_buf);   /* fills global lookup_results */
 
+    clear_line(TICKER_ROW);
     clear_content_area();
 
     if (lookup_results.count == 0) {
         gotoxy(0, 2);
         printf("No results found.  Press any key.");
-        while (cgetc() == 0)
+        while (!kbhit())
             ;
         return false;
     }
 
     gotoxy(0, 2);
-    printf("Results for: %s", query);
+    printf("Results for: %s", sym_buf);
 
     for (i = 0; i < lookup_results.count; i++)
         draw_lookup_row(i, i == lk_sel);
@@ -397,8 +501,9 @@ static bool lookup_screen(int return_slot, bool update_stocks)
     draw_menu(false, true);
 
     for (;;) {
-        while ((key = cgetc()) == 0)
+        while (!kbhit())
             ;
+        key = cgetc();
 
         if (key == BREAK)
             return false;
@@ -424,6 +529,10 @@ static bool lookup_screen(int return_slot, bool update_stocks)
         }
     }
 }
+
+/* -----------------------------------------------------------------------
+ * Input / navigation
+ * ----------------------------------------------------------------------- */
 
 /**
  * @brief Return the new selection index after a directional key press.
@@ -461,6 +570,10 @@ static int move_selection(int current, char key)
     return current;
 }
 
+/* -----------------------------------------------------------------------
+ * Main loop
+ * ----------------------------------------------------------------------- */
+
 /**
  * @brief Main application loop; returns when the user presses BREAK.
  *
@@ -478,23 +591,18 @@ void main_loop(void)
     clock_t last_quote_time     = clock();
 
     clrscr();
-    draw_menu(show_stocks, false);
+    print_app_name(true);
+    load_stocks();
+    last_quote_time = get_stock_quotes();
+    clear_line(TICKER_ROW);
 
     for (;;) {
 
         if (clock() - last_quote_time >= GET_QUOTES_INTERVAL) {
             clear_line(TICKER_ROW);
-            get_stock_quotes();
-            last_quote_time     = clock();
+            last_quote_time     = get_stock_quotes();
             need_scroll_rebuild = true;
             need_redraw         = true;
-        }
-
-        if (need_scroll_rebuild) {
-            build_scroll_string(scroll_buf, SCROLL_BUF_LEN);
-            scroll_len          = (int)strlen(scroll_buf);
-            scroll_pos          = 0;
-            need_scroll_rebuild = false;
         }
 
         if (need_redraw) {
@@ -503,6 +611,13 @@ void main_loop(void)
                 draw_stock_list(selected);
             draw_menu(show_stocks, false);
             need_redraw = false;
+        }
+
+        if (need_scroll_rebuild) {
+            build_scroll_string(scroll_buf, SCROLL_BUF_LEN);
+            scroll_len          = (int)strlen(scroll_buf);
+            scroll_pos          = 0;
+            need_scroll_rebuild = false;
         }
 
         sync_frame();
@@ -514,9 +629,9 @@ void main_loop(void)
         }
         draw_ticker_row();
 
-        key = cgetc();
-        if (key == 0)
+        if (!kbhit())
             continue;
+        key = cgetc();
 
         if (key == BREAK)
             break;
@@ -532,6 +647,7 @@ void main_loop(void)
 
             case 'H': case 'h':
                 if (show_stocks) {
+                    draw_slot(selected, false);
                     show_stocks = false;
                     need_redraw = true;
                 }
@@ -565,21 +681,30 @@ void main_loop(void)
 
             case 'E': case 'e':
                 if (show_stocks) {
-                    edit_stock(selected);
-                    sort_stocks();
-                    save_stocks();
-                    clear_line(TICKER_ROW);
-                    get_stock_quotes();
-                    last_quote_time     = clock();
-                    selected            = 0;
-                    need_scroll_rebuild = true;
-                    need_redraw         = true;
+                    if (edit_stock(selected)) {
+                        sort_stocks();
+                        save_stocks();
+                        clear_line(TICKER_ROW);
+                        last_quote_time     = get_stock_quotes();
+                        selected            = 0;
+                        need_scroll_rebuild = true;
+                    }
+                    need_redraw = true;
                 }
+                break;
+
+            case 'R': case 'r':
+                clear_line(TICKER_ROW);
+                last_quote_time     = get_stock_quotes();
+                need_scroll_rebuild = true;
+                need_redraw         = true;
                 break;
 
             case 'D': case 'd':
                 if (show_stocks && stocks[selected].symbol[0] != '\0') {
                     delete_stock(selected);
+                    sort_stocks();
+                    save_stocks();
                     if (selected >= MAX_STOCKS - 1)
                         selected = MAX_STOCKS - 2;
                     if (selected < 0)
@@ -593,26 +718,25 @@ void main_loop(void)
                 if (show_stocks && stocks[selected].symbol[0] != '\0') {
                     show_stock_info(selected);
                     clrscr();
+                    print_app_name(true);
                     need_redraw         = true;
                     need_scroll_rebuild = true;
-                    draw_menu(show_stocks, false);
                 }
                 break;
 
             case 'L': case 'l':
                 if (lookup_screen(selected, show_stocks)) {
-                    clrscr();
                     sort_stocks();
                     save_stocks();
-                    get_stock_quotes();
-                    last_quote_time = clock();
-                } else {
                     clrscr();
+                    print_app_name(true);
+                    last_quote_time = get_stock_quotes();
                 }
+                clrscr();
+                print_app_name(true);
                 selected            = 0;
                 need_redraw         = true;
                 need_scroll_rebuild = true;
-                draw_menu(show_stocks, false);
                 break;
 
             default:
