@@ -181,7 +181,7 @@ static void draw_menu(bool show_stocks, bool lookup)
     else if (show_stocks)
         draw_centered("0-9/Arrows:Sel <R>efresh <" BREAK_KEY_NAME ">:Quit");
     else
-        draw_centered("<" BREAK_KEY_NAME ">:Quit");
+        draw_centered("<R>efresh <" BREAK_KEY_NAME ">:Quit");
 }
 
 /* -----------------------------------------------------------------------
