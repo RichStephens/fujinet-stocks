@@ -15,6 +15,7 @@ void hirestxt_close(void);
 void switch_colorset(void);
 void revers(uint8_t on);
 #define cputs(s) putstr((s), strlen(s))
+#define cputcxy(x, y, c) do { gotoxy((x), (y)); putchar(c); } while(0)
 #include <hirestxt.h>
 #include <chardefs.h>
 

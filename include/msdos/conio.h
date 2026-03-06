@@ -28,6 +28,7 @@ char cgetc(void);
 void revers(uint8_t on);
 void cursor(bool on);
 int cputs(const char *s);
+#define cputcxy(x, y, c) do { gotoxy((x), (y)); putchar(c); } while(0)
 
 #include <chardefs.h>
 
