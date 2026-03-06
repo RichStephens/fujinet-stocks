@@ -9,6 +9,15 @@
 #include "chardefs.h"
 #include "get_line.h"
 
+#ifdef __ATARI__
+#include <atari.h>
+#define show_cursor() do { cursor(1); OS.crsinh = 0; } while(0)
+#define hide_cursor() do { cursor(0); OS.crsinh = 1; } while(0)
+#else
+#define show_cursor() cursor(1)
+#define hide_cursor() cursor(0)
+#endif
+
 /**
  * @brief Read a line of input with echo, backspace, and cursor support.
  *
@@ -24,14 +33,15 @@ void get_line(char* buf, uint8_t max_len) {
 	uint8_t start_x = wherex();
 	memset(buf, 0, max_len);
 
-	cursor(1);
+	show_cursor();
+	gotox(start_x);
 
 	do {
 		c = cgetc();
 
 		if (c == BREAK) {
 			buf[0] = '\0';
-			cursor(0);
+			hide_cursor();
 			revers(0);
 			return;
 		}
@@ -41,10 +51,10 @@ void get_line(char* buf, uint8_t max_len) {
 				// we're at the end, set reverse and invisible cursor
 				// so it looks like the cursor is editing the current last character
 				revers(1);
-				cursor(0);
+				hide_cursor();
 			} else {
 				revers(0);
-				cursor(1);
+				show_cursor();
 			}
 
 			cputc(c);
@@ -62,14 +72,14 @@ void get_line(char* buf, uint8_t max_len) {
 				if (i == (max_len - 1) && buf[i] != '\0') {
 					// don't "move" the cursor, but do set back to normal text
 					revers(0);
-					cursor(1);
+					show_cursor();
 				} else {
 					// we weren't on a full buffer, ok to move
 					--i;
 				}
 				cputc(' ');
 				gotox(cur_x - 1);
-				
+
 				buf[i] = '\0';
 			}
 		}
@@ -77,12 +87,12 @@ void get_line(char* buf, uint8_t max_len) {
 	} while (c != CH_ENTER);
 
 	// in case last character printed left us in revers mode, undo it, and write out the final string so the inverse char is removed.
-	cursor(0);
+	hide_cursor();
 	revers(0);
 	gotox(start_x);
 	cputs(buf);
 
-	cursor(0);
+	hide_cursor();
 
 	//// Alternate version just using cgets() with Oliver's changes to handle CH_DEL:
 	// cgets(buf, max_len+1);
