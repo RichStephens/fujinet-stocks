@@ -38,7 +38,7 @@ jobs:
 
       - name: Install mtools (mformat, mcopy)
         if: matrix.platform == 'msdos'
-        run: apt-get install -y mtools
+        run: apt-get update && apt-get install -y mtools
 
       - name: Build
         run: make ${{ matrix.platform }}/r2r
