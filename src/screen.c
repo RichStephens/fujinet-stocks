@@ -16,20 +16,16 @@
 #include <network.h>
 #include "stocks.h"
 
-/* cc65's revers() only affects cputc/cputs, not printf/putchar.
- * Use cputs() for any string printed inside a revers() block on cc65. */
-#if defined(BUILD_APPLE2) || defined(BUILD_ATARI)
-#  define print_str(s) cputs(s)
-#else
-#  define print_str(s) printf("%s", (s))
+#ifndef GIT_VERSION
+#  define GIT_VERSION "unknown"
 #endif
 
 /** @brief Scroll buffer and state for the ticker tape at row 0. */
 #define SCROLL_BUF_LEN  384
-static char  scroll_buf[SCROLL_BUF_LEN];
-static int   scroll_len  = 0;
-static int   scroll_pos  = 0;
-static int   frame_count = 0;
+static char          scroll_buf[SCROLL_BUF_LEN];
+static unsigned int  scroll_len  = 0;
+static unsigned int  scroll_pos  = 0;
+static uint8_t frame_count = 0;
 
 /* Shared symbol/scratch buffer.  draw_slot, draw_lookup_row, edit_stock,
  * lookup_screen, and show_stock_info are all mutually exclusive (each is
@@ -46,7 +42,7 @@ static char sym_buf[16];
  *
  * @param n Number of spaces to write.
  */
-static void fill_spaces(int n)
+static void fill_spaces(uint8_t n)
 {
     while (n-- > 0)
         putchar(' ');
@@ -59,9 +55,9 @@ static void fill_spaces(int n)
  *
  * @param s The string to centre.
  */
-void print_centered(const char *s)
+void draw_centered(const char *s)
 {
-    fill_spaces((SCREEN_WIDTH - (int)strlen(s)) / 2);
+    fill_spaces((uint8_t)((SCREEN_WIDTH - strlen(s)) / 2));
     printf("%s", s);
 }
 
@@ -70,14 +66,14 @@ void print_centered(const char *s)
  *
  * @param row The row number to clear.
  */
-void clear_line(int row)
+void clear_line(uint8_t row)
 {
     /* On cc65 targets (Atari, Apple II) use cclearxy() which writes directly
      * to screen RAM without going through the OS text device, avoiding the
      * logical-line cursor-wrap issue that shifts subsequent gotoxy() targets.
      * All other platforms can safely use putchar via fill_spaces. */
 #if defined(BUILD_APPLE2) || defined(BUILD_ATARI)
-    cclearxy(0, (unsigned char)row, SCREEN_WIDTH);
+    cclearxy(0, (uint8_t)row, SCREEN_WIDTH);
     gotoxy(0, row);
 #else
     gotoxy(0, row);
@@ -91,7 +87,7 @@ void clear_line(int row)
  */
 static void clear_content_area(void)
 {
-    unsigned char row;
+    uint8_t row;
     for (row = CONTENT_TOP_ROW; row < MENU_ROW1 - 2; row++) {
         gotoxy(0, row);
         clear_line(row);
@@ -137,17 +133,22 @@ void update_progress_message(void)
 /**
  * @brief Print the application title and optionally a "Please Wait" banner.
  *
- * @param print_wait If true, prints "*** Please Wait ***" below the title.
+ * @param show_wait If true, prints "*** Please Wait ***" below the title.
  */
-void print_app_name(bool print_wait)
+void draw_app_name(bool show_wait, bool show_version)
 {
     gotoxy(0, MENU_ROW1 - 2);
-    print_centered("*** FujiNet Stocks ***");
+    draw_centered("*** FujiNet Stocks ***");
 
     clear_line(MENU_ROW1 - 1);
-    if (print_wait) {
+    if (show_wait) {
         gotoxy(0, MENU_ROW1 - 1);
-        print_centered("*** Please Wait ***");
+        draw_centered("*** Please Wait ***");
+    } else if (show_version) {
+#ifndef _CMOC_VERSION_
+        gotoxy(0, MENU_ROW1 - 1);
+        draw_centered("Version: " GIT_VERSION);
+#endif
     }
 }
 
@@ -162,25 +163,25 @@ void print_app_name(bool print_wait)
  */
 static void draw_menu(bool show_stocks, bool lookup)
 {
-    print_app_name(false);
+    draw_app_name(false, !lookup);
     clear_line(MENU_ROW1);
     clear_line(MENU_ROW2);
 
     gotoxy(0, MENU_ROW1);
     if (lookup)
-        print_centered("Arrows:Select  <ENTER>:Choose");
+        draw_centered("Arrows:Select  <ENTER>:Choose");
     else if (show_stocks)
-        print_centered("<H>ide <E>dit <D>el <I>nfo <L>ookup");
+        draw_centered("<H>ide <E>dit <D>el <I>nfo <L>ookup");
     else
-        print_centered("<S>how <L>ookup");
+        draw_centered("<S>how <L>ookup");
 
     gotoxy(0, MENU_ROW2);
     if (lookup)
-        print_centered("<" BREAK_KEY_NAME ">:Return");
+        draw_centered("<" BREAK_KEY_NAME ">:Return");
     else if (show_stocks)
-        print_centered("0-9/Arrows:Sel <R>efresh <" BREAK_KEY_NAME ">:Quit");
+        draw_centered("0-9/Arrows:Sel <R>efresh <" BREAK_KEY_NAME ">:Quit");
     else
-        print_centered("<" BREAK_KEY_NAME ">:Quit");
+        draw_centered("<" BREAK_KEY_NAME ">:Quit");
 }
 
 /* -----------------------------------------------------------------------
@@ -192,14 +193,15 @@ static void draw_menu(bool show_stocks, bool lookup)
  */
 static void draw_ticker_row(void)
 {
-    int  col, idx;
+    uint8_t col;
+    int           idx;
     char c;
 
     gotoxy(0, TICKER_ROW);
     for (col = 0; col < SCREEN_WIDTH - 1; col++) {
         idx = (scroll_pos + col) % scroll_len;
         c   = scroll_buf[idx];
-        if ((unsigned char)c < 0x20)
+        if ((uint8_t)c < 0x20)
             c = ' ';
         putchar(c);
     }
@@ -209,13 +211,13 @@ static void draw_ticker_row(void)
 #if defined(BUILD_APPLE2) || defined(BUILD_ATARI)
     idx = (scroll_pos + SCREEN_WIDTH - 1) % scroll_len;
     c   = scroll_buf[idx];
-    if ((unsigned char)c < 0x20)
+    if ((uint8_t)c < 0x20)
         c = ' ';
-    cputcxy((unsigned char)(SCREEN_WIDTH - 1), TICKER_ROW, c);
+    cputcxy((uint8_t)(SCREEN_WIDTH - 1), TICKER_ROW, c);
 #else
     idx = (scroll_pos + SCREEN_WIDTH - 1) % scroll_len;
     c   = scroll_buf[idx];
-    if ((unsigned char)c < 0x20)
+    if ((uint8_t)c < 0x20)
         c = ' ';
     putchar(c);
 #endif
@@ -235,7 +237,7 @@ static void draw_ticker_row(void)
  * @param i           Slot index to render.
  * @param highlighted true to render the symbol field in inverse video.
  */
-static void draw_slot(int i, bool highlighted)
+static void draw_slot(uint8_t i, bool highlighted)
 {
     if (stocks[i].symbol[0] != '\0') {
         snprintf(sym_buf, 11, "%-10s", stocks[i].symbol);
@@ -247,7 +249,7 @@ static void draw_slot(int i, bool highlighted)
     gotoxy(stock_coords[i].x, stock_coords[i].y);
     printf("%2d: ", i + 1);
     revers(highlighted);
-    print_str(sym_buf);
+    cputs(sym_buf);
     revers(0);
 }
 
@@ -256,9 +258,9 @@ static void draw_slot(int i, bool highlighted)
  *
  * @param selected Index of the currently selected slot.
  */
-static void draw_stock_list(int selected)
+static void draw_stock_list(uint8_t selected)
 {
-    unsigned char i;
+    uint8_t i;
     for (i = 0; i < MAX_STOCKS; i++)
         draw_slot(i, i == selected);
 }
@@ -273,7 +275,7 @@ static void draw_stock_list(int selected)
  * @param i           Result index to render.
  * @param highlighted true to render the row in inverse video.
  */
-static void draw_lookup_row(int i, bool highlighted)
+static void draw_lookup_row(uint8_t i, bool highlighted)
 {
     static char line[41];
     static char desc[28];
@@ -282,9 +284,14 @@ static void draw_lookup_row(int i, bool highlighted)
     strncpy(desc,    lookup_results.results[i].description,   27); desc[27]    = '\0';
     snprintf(line, sizeof(line), "%-12s %-27s", sym_buf, desc);
     line[40] = '\0';
+#if defined(BUILD_APPLE2)
+    /* Apple II inverse video only supports uppercase; lowercase renders as
+     * garbled symbols.  Uppercase the line before printing in inverse. */
+    if (highlighted) strupr(line);
+#endif
     gotoxy(0, 4 + i);
     revers(highlighted);
-    print_str(line);
+    cputs(line);
     revers(0);
 }
 
@@ -302,7 +309,7 @@ static void draw_lookup_row(int i, bool highlighted)
  * @param out      Output buffer.
  * @param out_len  Size of the output buffer.
  */
-static void format_large_num(long millions, char *out, int out_len)
+static void format_large_num(long millions, char *out, uint8_t out_len)
 {
     long whole, frac;
     char suffix;
@@ -335,13 +342,13 @@ static void format_large_num(long millions, char *out, int out_len)
  * @param out     Output buffer.
  * @param out_len Size of the output buffer.
  */
-static void format_phone(const char *raw, char *out, int out_len)
+static void format_phone(const char *raw, char *out, uint8_t out_len)
 {
-    char        digits[16];
-    int         n = 0;
-    const char *p;
+    char          digits[16];
+    uint8_t n = 0;
+    const char   *p;
 
-    for (p = raw; *p && n < (int)sizeof(digits) - 1; p++) {
+    for (p = raw; *p && n < sizeof(digits) - 1; p++) {
         if (*p >= '0' && *p <= '9')
             digits[n++] = *p;
     }
@@ -380,18 +387,18 @@ static void format_phone(const char *raw, char *out, int out_len)
  *
  * @param selected Slot index of the stock to display.
  */
-static void show_stock_info(int selected)
+static void show_stock_info(uint8_t selected)
 {
     if (stocks[selected].symbol[0] == '\0')
         return;
 
     clrscr();
-    print_app_name(true);
+    draw_app_name(true, true);
     get_stock_info(stocks[selected].symbol);
     clear_line(MENU_ROW1 - 1);
     clear_line(TICKER_ROW);
     gotoxy(0, TICKER_ROW);
-    print_centered("*** Stock Information ***");
+    draw_centered("*** Stock Information ***");
 
     gotoxy(0, 5);  printf("Symbol  : %s",  stock_info.symbol);
     gotoxy(0, 6);  printf("Company : %s",  stock_info.name);
@@ -414,7 +421,7 @@ static void show_stock_info(int selected)
 
     clear_line(MENU_ROW1);
     gotoxy(0, MENU_ROW1);
-    print_centered("Press any key to return...");
+    draw_centered("* Press any key to return *");
 
     clear_line(MENU_ROW2);
 
@@ -432,7 +439,7 @@ static void show_stock_info(int selected)
  * @param selected Slot index to edit.
  * @return true if the user committed a new symbol, false if aborted (BREAK).
  */
-static bool edit_stock(int selected)
+static bool edit_stock(uint8_t selected)
 {
     sym_buf[0] = '\0';
     gotoxy(stock_coords[selected].x, stock_coords[selected].y);
@@ -461,12 +468,12 @@ static bool edit_stock(int selected)
  */
 static bool lookup_screen(int return_slot, bool update_stocks)
 {
-    unsigned char lk_sel = 0, i;
+    uint8_t lk_sel = 0, i;
     char key;
 
     sym_buf[0] = '\0';
     clrscr();
-    print_app_name(false);
+    draw_app_name(false, false);
     gotoxy(0, TICKER_ROW);
     printf("Enter search term - <" BREAK_KEY_NAME "> to cancel:");
     gotoxy(0, TICKER_ROW + 1);
@@ -477,7 +484,7 @@ static bool lookup_screen(int return_slot, bool update_stocks)
     if (sym_buf[0] == '\0')
         return false;
 
-    print_app_name(true);
+    draw_app_name(true, false);
     set_progress_message("Searching");
     lookup_stock_ticker(sym_buf);   /* fills global lookup_results */
 
@@ -499,11 +506,17 @@ static bool lookup_screen(int return_slot, bool update_stocks)
         draw_lookup_row(i, i == lk_sel);
 
     draw_menu(false, true);
+    clear_line(MENU_ROW1 - 1);
 
     for (;;) {
+#ifdef _CMOC_VERSION_
+        while (!(key = inkey()))
+            ;
+#else
         while (!kbhit())
             ;
         key = cgetc();
+#endif
 
         if (key == BREAK)
             return false;
@@ -545,7 +558,7 @@ static bool lookup_screen(int return_slot, bool update_stocks)
  * @param key     Arrow key character.
  * @return New slot index (unchanged if the move would leave the grid).
  */
-static int move_selection(int current, char key)
+static uint8_t move_selection(uint8_t current, char key)
 {
     switch (key) {
         case ARROW_RIGHT:
@@ -582,16 +595,16 @@ static int move_selection(int current, char key)
  */
 void main_loop(void)
 {
-    bool    show_stocks         = true;
-    int     selected            = 0;
-    int     new_sel;
+    bool          show_stocks         = true;
+    uint8_t selected            = 0;
+    uint8_t new_sel;
     char    key;
     bool    need_redraw         = true;
     bool    need_scroll_rebuild = true;
     clock_t last_quote_time     = clock();
 
     clrscr();
-    print_app_name(true);
+    draw_app_name(true, true);
     load_stocks();
     last_quote_time = get_stock_quotes();
     clear_line(TICKER_ROW);
@@ -615,7 +628,7 @@ void main_loop(void)
 
         if (need_scroll_rebuild) {
             build_scroll_string(scroll_buf, SCROLL_BUF_LEN);
-            scroll_len          = (int)strlen(scroll_buf);
+            scroll_len          = (unsigned int)strlen(scroll_buf);
             scroll_pos          = 0;
             need_scroll_rebuild = false;
         }
@@ -629,9 +642,15 @@ void main_loop(void)
         }
         draw_ticker_row();
 
+#ifdef _CMOC_VERSION_
+        key = inkey();
+        if (!key)
+            continue;
+#else
         if (!kbhit())
             continue;
         key = cgetc();
+#endif
 
         if (key == BREAK)
             break;
@@ -695,9 +714,9 @@ void main_loop(void)
 
             case 'R': case 'r':
                 clear_line(TICKER_ROW);
-                print_app_name(true);
+                draw_app_name(true, true);
                 last_quote_time     = get_stock_quotes();
-                print_app_name(false);
+                draw_app_name(false, true);
                 need_scroll_rebuild = true;
                 need_redraw         = true;
                 break;
@@ -709,8 +728,6 @@ void main_loop(void)
                     save_stocks();
                     if (selected >= MAX_STOCKS - 1)
                         selected = MAX_STOCKS - 2;
-                    if (selected < 0)
-                        selected = 0;
                     need_scroll_rebuild = true;
                     need_redraw         = true;
                 }
@@ -720,7 +737,7 @@ void main_loop(void)
                 if (show_stocks && stocks[selected].symbol[0] != '\0') {
                     show_stock_info(selected);
                     clrscr();
-                    print_app_name(true);
+                    draw_app_name(true, true);
                     need_redraw         = true;
                     need_scroll_rebuild = true;
                 }
@@ -731,11 +748,11 @@ void main_loop(void)
                     sort_stocks();
                     save_stocks();
                     clrscr();
-                    print_app_name(true);
+                    draw_app_name(true, true);
                     last_quote_time = get_stock_quotes();
                 }
                 clrscr();
-                print_app_name(true);
+                draw_app_name(true, true);
                 selected            = 0;
                 need_redraw         = true;
                 need_scroll_rebuild = true;

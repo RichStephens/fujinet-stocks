@@ -7,7 +7,7 @@
 
 byte colorset = 0;
 bool cursor_on = false;
-unsigned char inverse_mode = 0;
+uint8_t inverse_mode = 0;
 
 /**
  * @brief Initialise the 42-column hi-res text screen via the hirestxt library.
@@ -206,7 +206,7 @@ void get_line(char *buf, uint8_t max_len)
  *
  * @param on 1 to enable inverse, 0 to disable.
  */
-void revers(unsigned char on)
+void revers(uint8_t on)
 {
     inverse_mode = on;
     setInverseVideoMode((byte)on);
@@ -232,7 +232,7 @@ void sync_frame(void)
  *
  * @return Always 1.
  */
-unsigned char doesclrscrafterexit(void)
+uint8_t doesclrscrafterexit(void)
 {
     return 1;
 }

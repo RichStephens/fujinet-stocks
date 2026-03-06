@@ -14,6 +14,7 @@
  *   Rows 22 - 23  : menu / command help
  * ----------------------------------------------------------------------- */
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef _CMOC_VERSION_
 #  define SCREEN_WIDTH     42
@@ -61,8 +62,8 @@
 #  define BREAK_KEY_NAME  "ESC"
 #endif
 
-void print_centered(const char *s);
-void clear_line(int row);
-void print_app_name(bool print_wait);
+void draw_centered(const char *s);
+void clear_line(uint8_t row);
+void draw_app_name(bool show_wait, bool show_version);
 
 #endif /* SCREEN_H */

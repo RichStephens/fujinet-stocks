@@ -11,6 +11,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {
     VIDEO_MODE_40COL,
@@ -24,8 +25,9 @@ int kbhit(void);
 void gotoxy(int x, int y);
 void clrscr(void);
 char cgetc(void);
-void revers(unsigned char on);
+void revers(uint8_t on);
 void cursor(bool on);
+int cputs(const char *s);
 
 #include <chardefs.h>
 
