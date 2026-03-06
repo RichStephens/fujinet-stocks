@@ -43,7 +43,7 @@ void check_error(uint8_t err, const char *msg)
         clrscr();
         printf("%s", msg);
         gotoxy(0, MENU_ROW1);
-        draw_centered("* Press any key to return *");
+        draw_centered("* Press any key to exit *");
 
     clear_line(MENU_ROW2);
 
