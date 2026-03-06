@@ -53,16 +53,16 @@ const Coord stock_coords[MAX_STOCKS] = {
  * @param out     Output buffer; must be at least out_len bytes.
  * @param out_len Size of the output buffer.
  */
-void format_price(long cents, char *out, int out_len)
+void format_price(long cents, char *out, uint8_t out_len)
 {
     long dollars;
-    unsigned char rem, neg, pos, dstart, len, i;
+    uint8_t rem, neg, pos, dstart, len, i;
     char t;
 
     neg = (cents < 0);
     if (neg) cents = -cents;
     dollars = cents / 100L;
-    rem     = (unsigned char)(cents % 100L);
+    rem     = (uint8_t)(cents % 100L);
 
     pos = 0;
     if (neg) out[pos++] = '-';
@@ -100,7 +100,7 @@ void format_price(long cents, char *out, int out_len)
  */
 void build_scroll_string(char *buf, int buf_len)
 {
-    unsigned char i, j, m;
+    uint8_t i, j, m;
     int pos = 0;
     static char price_str[12];
     static char change_str[12];
@@ -152,7 +152,7 @@ void build_scroll_string(char *buf, int buf_len)
  */
 void sort_stocks(void)
 {
-    unsigned char i;
+    uint8_t i;
     signed char   j;
     static Stock  tmp;
 
@@ -174,9 +174,9 @@ void sort_stocks(void)
  *
  * @param index Slot index of the stock to remove.
  */
-void delete_stock(int index)
+void delete_stock(uint8_t index)
 {
-    if (index < 0 || index >= MAX_STOCKS)
+    if (index >= MAX_STOCKS)
         return;
 
     memset(&stocks[index], 0, sizeof(Stock));
@@ -189,7 +189,7 @@ void delete_stock(int index)
  */
 clock_t get_stock_quotes(void)
 {
-    unsigned char i;
+    uint8_t i;
     set_progress_message("Updating stocks");
     for (i = 0; i < MAX_STOCKS; i++) {
         if (stocks[i].symbol[0] != '\0') {
@@ -211,10 +211,10 @@ clock_t get_stock_quotes(void)
  *
  * @param base_slot Starting slot index in the stocks[] array.
  */
-static void parse_symbols_into_slots(int base_slot)
+static void parse_symbols_into_slots(uint8_t base_slot)
 {
     char         *tok;
-    unsigned char slot = (unsigned char)base_slot;
+    uint8_t slot = base_slot;
 
     tok = strtok(stock_io_buf, "|");
     while (tok != NULL && slot < base_slot + 5) {
@@ -233,18 +233,18 @@ static void parse_symbols_into_slots(int base_slot)
  * @param buf       Output buffer; must be at least 64 bytes.
  * @param base_slot Starting slot index in the stocks[] array.
  */
-static void build_symbols_from_slots(char *buf, int base_slot)
+static void build_symbols_from_slots(char *buf, uint8_t base_slot)
 {
-    unsigned char i, pos = 0, first = 1;
+    uint8_t i, pos = 0, first = 1;
 
     buf[0] = '\0';
-    for (i = (unsigned char)base_slot; i < (unsigned char)(base_slot + 5); i++) {
+    for (i = base_slot; i < base_slot + 5; i++) {
         if (stocks[i].symbol[0] == '\0')
             continue;
         if (!first)
             buf[pos++] = '|';
         strncpy(buf + pos, stocks[i].symbol, SYMBOL_LEN - 1);
-        pos += (unsigned char)strlen(stocks[i].symbol);
+        pos += (uint8_t)strlen(stocks[i].symbol);
         first = 0;
     }
     buf[pos] = '\0';

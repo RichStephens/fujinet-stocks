@@ -13,7 +13,8 @@ void gotoxy(int x, int y);
 void hirestxt_init(void);
 void hirestxt_close(void);
 void switch_colorset(void);
-void revers(unsigned char on);
+void revers(uint8_t on);
+#define cputs(s) putstr((s), strlen(s))
 #include <hirestxt.h>
 #include <chardefs.h>
 

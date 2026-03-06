@@ -43,7 +43,7 @@ void check_error(uint8_t err, const char *msg)
         clrscr();
         printf("%s", msg);
         gotoxy(0, MENU_ROW1);
-        print_centered("Press any key to return...");
+        draw_centered("* Press any key to return *");
 
     clear_line(MENU_ROW2);
 
@@ -68,10 +68,10 @@ void check_error(uint8_t err, const char *msg)
 void url_encode(const char *src, char *out, int out_len)
 {
     static const char hex[] = "0123456789ABCDEF";
-    unsigned char pos = 0, c;
+    uint8_t pos = 0, c;
 
     while (*src && pos < out_len - 3) {
-        c = (unsigned char)*src++;
+        c = (uint8_t)*src++;
         if ((c >= 'A' && c <= 'Z') ||
             (c >= 'a' && c <= 'z') ||
             (c >= '0' && c <= '9') ||
@@ -97,7 +97,7 @@ void url_encode(const char *src, char *out, int out_len)
 static long parse_decimal(const char *s)
 {
     long whole = 0, frac = 0;
-    unsigned char neg = 0, frac_digits = 0;
+    uint8_t neg = 0, frac_digits = 0;
     const char *p = s;
 
     if (*p == '-') { neg = 1; p++; }
@@ -224,7 +224,7 @@ void get_stock_info(const char *symbol)
  */
 void lookup_stock_ticker(const char *query)
 {
-    unsigned char i, count;
+    uint8_t i, count;
 
     memset(&lookup_results, 0, sizeof(LookupResults));
 
@@ -239,7 +239,7 @@ void lookup_stock_ticker(const char *query)
 
     net_val[0] = '\0';
     network_json_query(net_url, "/count", net_val);
-    count = (unsigned char)atoi(net_val);
+    count = (uint8_t)atoi(net_val);
     if (count > MAX_LOOKUP_RESULTS)
         count = MAX_LOOKUP_RESULTS;
     lookup_results.count = count;

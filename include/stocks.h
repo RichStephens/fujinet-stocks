@@ -27,8 +27,8 @@
  * Coord  –  a 2-D screen coordinate (x = column, y = row)
  * ----------------------------------------------------------------------- */
 typedef struct {
-    unsigned char x;
-    unsigned char y;
+    uint8_t x;
+    uint8_t y;
 } Coord;
 
 /* -----------------------------------------------------------------------
@@ -103,7 +103,7 @@ typedef struct {
 } LookupResult;
 
 typedef struct {
-    int          count;
+    uint8_t count;
     LookupResult results[MAX_LOOKUP_RESULTS];
 } LookupResults;
 
@@ -116,9 +116,9 @@ void sync_frame(void);
 
 void main_loop(void);
 void build_scroll_string(char *buf, int buf_len);
-void format_price(long cents, char *out, int out_len);
+void format_price(long cents, char *out, uint8_t out_len);
 void sort_stocks(void);
-void delete_stock(int index);
+void delete_stock(uint8_t index);
 void load_stocks(void);
 void save_stocks(void);
 clock_t get_stock_quotes(void);

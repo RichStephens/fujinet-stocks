@@ -40,8 +40,8 @@ void gotoxy(int x, int y)
     static union REGS r;
     r.h.ah = 0x02;              /* Set Cursor Position */
     r.h.bh = 0x00;              /* video page 0        */
-    r.h.dh = (unsigned char)y;  /* row  (0-based)      */
-    r.h.dl = (unsigned char)x;  /* col  (0-based)      */
+    r.h.dh = (uint8_t)y;  /* row  (0-based)      */
+    r.h.dl = (uint8_t)x;  /* col  (0-based)      */
     int86(0x10, &r, &r);
 }
 
@@ -54,7 +54,7 @@ void gotoxy(int x, int y)
 #define ATTR_NORMAL  0x17   /* white on blue  */
 #define ATTR_REVERSE 0x70   /* black on white */
 
-static unsigned char saved_attr = 0x07;  /* restored in cleanup() */
+static uint8_t saved_attr = 0x07;  /* restored in cleanup() */
 
 /**
  * @brief Fill the entire 40-column text screen with spaces using attr.
@@ -65,7 +65,7 @@ static unsigned char saved_attr = 0x07;  /* restored in cleanup() */
  *
  * @param attr Video attribute byte to apply to all cells.
  */
-static void fill_screen(unsigned char attr)
+static void fill_screen(uint8_t attr)
 {
     static union REGS r;
     r.h.ah = 0x06;
@@ -133,7 +133,7 @@ void set_video_mode(VideoMode mode)
  */
 void set_screen_bg_blue(void)
 {
-    unsigned char far *vbuf = (unsigned char far *)MK_FP(0xB800, 0);
+    uint8_t far *vbuf = (uint8_t far *)MK_FP(0xB800, 0);
     saved_attr = vbuf[1];   /* save current attribute of first cell */
     fill_screen(ATTR_NORMAL);
 }
@@ -149,7 +149,7 @@ void restore_screen_bg(void)
 static int           revers_start_x = 0;
 static int           revers_start_y = 0;
 static int           in_revers       = 0;
-static unsigned char pending_attr    = ATTR_NORMAL;
+static uint8_t pending_attr    = ATTR_NORMAL;
 
 /**
  * @brief Read the current hardware cursor position via BIOS.
@@ -180,9 +180,9 @@ static void get_cursor(int *x, int *y)
  * @param y2   Ending row (exclusive).
  * @param attr Attribute byte to write.
  */
-static void stamp_attr(int x1, int y1, int x2, int y2, unsigned char attr)
+static void stamp_attr(int x1, int y1, int x2, int y2, uint8_t attr)
 {
-    unsigned char far *vbuf = (unsigned char far *)MK_FP(0xB800, 0);
+    uint8_t far *vbuf = (uint8_t far *)MK_FP(0xB800, 0);
     int start = y1 * SCREEN_WIDTH + x1;
     int end   = y2 * SCREEN_WIDTH + x2;
     int pos;
@@ -210,7 +210,7 @@ static void stamp_attr(int x1, int y1, int x2, int y2, unsigned char attr)
  *
  * @param on 1 to request reverse video, 0 to request normal video.
  */
-void revers(unsigned char on)
+void revers(uint8_t on)
 {
     static int cx, cy;
     if (!in_revers) {
@@ -286,7 +286,7 @@ void get_line(char *buf, uint8_t max_len)
  *
  * @return Always 0.
  */
-unsigned char doesclrscrafterexit(void)
+uint8_t doesclrscrafterexit(void)
 {
     return 0;
 }
