@@ -36,6 +36,10 @@ jobs:
           git clone --depth=1 https://github.com/jhallen/atari-tools /tmp/atari-tools
           cd /tmp/atari-tools && make && cp atr /usr/local/bin/
 
+      - name: Install mtools (mformat, mcopy)
+        if: matrix.platform == 'msdos'
+        run: apt-get install -y mtools
+
       - name: Build
         run: make ${{ matrix.platform }}/r2r
 
