@@ -7,6 +7,14 @@
 
 AdapterConfigExtended ace;
 
+/**
+ * @brief Application entry point.
+ *
+ * Initialises the platform, runs the main loop until the user quits,
+ * persists the stock list, and performs platform cleanup before exit.
+ *
+ * @return Always 0.
+ */
 int main(void)
 {
     init();

@@ -92,8 +92,6 @@ void get_line(char* buf, uint8_t max_len) {
 	gotox(start_x);
 	cputs(buf);
 
-	hide_cursor();
-
 	//// Alternate version just using cgets() with Oliver's changes to handle CH_DEL:
 	// cgets(buf, max_len+1);
 }

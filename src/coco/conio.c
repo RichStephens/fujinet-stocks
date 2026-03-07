@@ -111,40 +111,30 @@ void cursor(bool onoff)
         removeCursor();
 }
 
-
-static char lastKey = 0;
-
-/**
- * @brief Return non-zero if a key is waiting, without consuming it.
- *
- * @return Non-zero if a key is available, 0 otherwise.
- */
-uint8_t kbhit(void)
+byte cgetc_cursor()
 {
-    return (uint8_t)(lastKey || (lastKey = inkey()) || (lastKey = inkey()));
-}
+  byte shift = false;
+  byte k;
 
-/**
- * @brief Wait for and return the next keypress.
- *
- * Consumes the key buffered by kbhit() if one is pending, otherwise
- * polls inkey() until a key arrives.
- *
- * @return The character code of the key pressed.
- */
-char cgetc(void)
-{
-    char key = lastKey;
+  while (true)
+  {
+    k = waitKeyBlinkingCursor();
 
-    lastKey = 0;
-
-    while (!key)
+    if (isKeyPressed(KEY_PROBE_SHIFT, KEY_BIT_SHIFT))
     {
-        key = (char)inkey();
+      shift = 0x00;
+    }
+    else
+    {
+      if (k > '@' && k < '[')
+        shift = 0x20;
     }
 
-    return key;
+    if (k)
+      return k + shift;
+  }
 }
+
 
 /**
  * @brief Read a line of input with echo and basic editing support.
@@ -162,7 +152,7 @@ void get_line(char *buf, uint8_t max_len)
 
     do
     {
-        c = waitkey(true);
+        c = cgetc_cursor();
         if (c == BREAK)
         {
             buf[0] = '\0';
@@ -189,8 +179,6 @@ void get_line(char *buf, uint8_t max_len)
     } while (c != ENTER);
     putchar('\n');
     buf[i] = '\0';
-
-    cursor(false);
 }
 
 /**

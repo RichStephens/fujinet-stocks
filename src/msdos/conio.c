@@ -294,10 +294,10 @@ void get_line(char *buf, uint8_t max_len)
 /**
  * @brief Report whether the platform clears the screen on exit.
  *
- * Returns 0 because DOS leaves the screen as-is; cleanup() must call
- * clrscr() explicitly before exiting.
+ * Returns 1 because cleanup() switches back to 80-column mode and
+ * restores the original screen background, so no further clrscr() is needed.
  *
- * @return Always 0.
+ * @return Always 1.
  */
 uint8_t doesclrscrafterexit(void)
 {

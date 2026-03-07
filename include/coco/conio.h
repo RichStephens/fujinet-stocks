@@ -4,8 +4,7 @@
 #include <fujinet-fuji.h>
 #include <coco.h>
 
-uint8_t kbhit(void);
-char cgetc(void);
+#define kbhit() inkey()
 void cursor(bool onoff);
 int wherex(void);
 int wherey(void);
