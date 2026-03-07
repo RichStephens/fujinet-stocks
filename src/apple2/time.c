@@ -10,8 +10,8 @@
 #include <stdint.h>
 #include <time.h>
 
-static clock_t           ticks    = 0;
-static uint8_t     last_vbl = 0;
+static clock_t  ticks    = 0;
+static uint8_t  last_vbl = 0;
 
 /* RDVBL soft-switch: bit 7 set during vertical blanking (IIe+) */
 #define RDVBL  (*(volatile uint8_t *)0xC019)

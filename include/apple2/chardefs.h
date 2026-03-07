@@ -18,6 +18,6 @@
 #define NEWLINE     0x0A
 #define CH_DEL      0x7F
 
-#define CLOCKS_PER_SEC 60
+#define CLOCKS_PER_SEC 10
 
 #endif /* CHARDEFS_H */

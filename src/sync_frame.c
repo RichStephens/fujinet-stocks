@@ -16,7 +16,7 @@
  * @brief Block until the system clock advances by one tick.
  *
  * Synchronises the main loop to CLOCKS_PER_SEC (typically 60 Hz on cc65
- * targets).  The CoCo version in src/coco/conio.c uses getTimer() instead.
+ * targets).  The CoCo version uses getTimer() in src/coco/conio.c instead.
  */
 void sync_frame(void)
 {

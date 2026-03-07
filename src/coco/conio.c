@@ -111,6 +111,15 @@ void cursor(bool onoff)
         removeCursor();
 }
 
+/**
+ * @brief Wait for a key press with blinking cursor, applying CoCo shift logic.
+ *
+ * Blocks using waitKeyBlinkingCursor() and corrects the returned keycode for
+ * shift state: upper-case letters are shifted to lower-case unless the shift
+ * key is held, matching the expected ASCII mapping for text input.
+ *
+ * @return ASCII code of the pressed key.
+ */
 byte cgetc_cursor()
 {
   byte shift = false;
