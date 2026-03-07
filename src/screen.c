@@ -638,7 +638,6 @@ void main_loop(void)
         }
         draw_ticker_row();
 
-
 #ifdef _CMOC_VERSION_
         key = inkey();
         if (!key)

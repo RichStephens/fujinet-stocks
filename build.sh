@@ -10,6 +10,7 @@ if [ -z "$WATCOM" ]; then
     export WIPFC=$WATCOM/wipfc
 fi
 
+make clean
 make atari apple2 coco msdos
 cp -rv r2r/* /tnfs
 
