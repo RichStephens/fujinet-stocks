@@ -51,7 +51,7 @@ static void fill_spaces(uint8_t n)
 /**
  * @brief Print a string centred within SCREEN_WIDTH on the current row.
  *
- * Leading and trailing spaces pad the field to exactly SCREEN_WIDTH columns.
+ * Leading spaces centre the string; no trailing padding is added.
  *
  * @param s The string to centre.
  */
@@ -83,7 +83,7 @@ void clear_line(uint8_t row)
 }
 
 /**
- * @brief Blank rows 1-21 without touching the ticker or menu rows.
+ * @brief Blank rows 1-19; rows 20-21 are left for draw_app_name() to overwrite.
  */
 static void clear_content_area(void)
 {
@@ -135,7 +135,8 @@ void update_progress_message(void)
 /**
  * @brief Print the application title and optionally a "Please Wait" banner.
  *
- * @param show_wait If true, prints "*** Please Wait ***" below the title.
+ * @param show_wait    If true, prints "*** Please Wait ***" below the title.
+ * @param show_version If true (and show_wait is false), prints the version string below the title.
  */
 void draw_app_name(bool show_wait, bool show_version)
 {
@@ -154,9 +155,6 @@ void draw_app_name(bool show_wait, bool show_version)
 
 /**
  * @brief Render the two-line command reference at rows 22-23.
- *
- * Written character-by-character to avoid accidentally triggering a scroll
- * via the bottom-right corner cell.
  *
  * @param show_stocks true when the stock list is visible (ignored when lookup).
  * @param lookup      true to show the lookup screen menu instead of the main menu.
@@ -416,9 +414,14 @@ static void show_stock_info(uint8_t selected)
 
     clear_line(MENU_ROW2);
 
+#ifdef _CMOC_VERSION_
+    while (!inkey())
+        ;
+#else
     while (!kbhit())
         ;
     cgetc();
+#endif
 }
 
 /**
@@ -433,6 +436,7 @@ static void show_stock_info(uint8_t selected)
 static bool edit_stock(uint8_t selected)
 {
     sym_buf[0] = '\0';
+    draw_slot(selected, false);
     gotoxy(stock_coords[selected].x, stock_coords[selected].y);
     printf("%2d: ", selected + 1);
 
