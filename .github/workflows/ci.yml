@@ -61,26 +61,20 @@ jobs:
         with:
           path: r2r-all
 
+      - name: Delete old "latest" release
+        run: gh release delete latest --yes || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Move "latest" tag to current commit
         run: |
           git tag -f latest
           git push origin -f latest
 
-      - name: Create or update "latest" release
+      - name: Create "latest" release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Clear old release assets
-        run: |
-          echo "Fetching existing assets for release 'latest'..."
-          assets=$(gh release view latest --json assets -q '.assets[].name')
-          for asset in $assets; do
-            echo "Deleting $asset..."
-            gh release delete-asset latest "$asset" -y
-          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
