@@ -16,6 +16,7 @@
 #include <network.h>
 #include "stocks.h"
 
+
 #ifndef GIT_VERSION
 #  define GIT_VERSION "unknown"
 #endif
@@ -636,6 +637,7 @@ void main_loop(void)
                 scroll_pos = 0;
         }
         draw_ticker_row();
+
 
 #ifdef _CMOC_VERSION_
         key = inkey();
