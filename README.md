@@ -22,6 +22,7 @@ up, add, edit, and delete stocks — all from a 40/42-column text screen.
 - Symbol lookup by name or partial ticker
 - Stocks persisted across sessions using FujiNet AppKey storage
 - Fixed-point arithmetic throughout — no floating point required on the 8-bit target
+- Version string displayed on the main screen below the title
 
 ## Screen Layout
 
@@ -53,7 +54,7 @@ The stock list is centred in the content area as two columns of five:
 | `D` | Delete the selected stock |
 | `I` | Show company info for the selected stock |
 | `L` | Look up a symbol by name or partial ticker |
-| `R` | Refresh quotes now |
+| `R` | Refresh quotes now (available in both stock-list and hidden-list views) |
 | `BREAK`/`ESC` | Quit (saves stock list before exiting) |
 
 ## Requirements
