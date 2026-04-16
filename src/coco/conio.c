@@ -49,25 +49,6 @@ void hirestxt_close(void)
 }
 
 /**
- * @brief Toggle between the two CoCo hi-res text color sets.
- *
- * colorset 0 is the default; colorset 1 is the alternate palette.
- */
-void switch_colorset(void)
-{
-    if (colorset == 0)
-    {
-        colorset = 1;
-    }
-    else
-    {
-        colorset = 0;
-    }
-
-    screen(1, colorset);
-}
-
-/**
  * @brief Move the cursor to the given 0-based (col, row) position.
  *
  * @param x Column (0-based).

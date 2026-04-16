@@ -23,6 +23,15 @@ CFLAGS = -DBUILD_$(PLATFORM_UC)
 # - undefined, no fujinet-lib will be used
 FUJINET_LIB = https://github.com/FozzTexx/fujinet-lib-experimental.git
 
+# HIRESTXT_LIB can be
+# - a version number such as 0.5.0.2
+# - a directory which contains the built library
+# - a URL to a git repo
+# - empty which will use whatever is the latest
+# - undefined, no hirestxt-mod will be used
+# Only used for coco/dragon builds.
+HIRESTXT_LIB = 0.5.0.2
+
 # Define extra dirs ("combos") that expand with a platform.
 # Format: platform+=combo1,combo2
 PLATFORM_COMBOS = \
@@ -33,7 +42,6 @@ PLATFORM_COMBOS = \
   adam_cpm+=adam
 
 CFLAGS_EXTRA_COCO += -Wno-const
-include hirestxt-mod-lib.mk
 include mekkogx/toplevel-rules.mk
 
 # If you need to add extra platform-specific steps, do it below:
@@ -41,5 +49,4 @@ include mekkogx/toplevel-rules.mk
 #   coco/r2r:: coco/custom-step2
 # or
 #   apple2/disk: apple2/custom-step1 apple2/custom-step2
-EXTRA_C_DEPS_COCO = .get_hirestxt_lib
 LDFLAGS_EXTRA_COCO = --org=2200 --limit=7C00
