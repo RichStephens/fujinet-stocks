@@ -98,8 +98,6 @@ extern const Coord stock_coords[MAX_STOCKS];
 typedef struct {
     char description[41];    /* e.g. "APPLE INC"           */
     char displaySymbol[12];  /* e.g. "AAPL", "AAPL.SW"    */
-    char symbol[12];         /* underlying symbol          */
-    char type[21];           /* e.g. "Common Stock"        */
 } LookupResult;
 
 typedef struct {
